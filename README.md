@@ -90,6 +90,12 @@
 ## ディレクトリ
 
 ```
-README.md         … この戦略ドキュメント
-tracker/kpi.csv   … 週次KPIの記録シート
+README.md                        … この戦略ドキュメント
+AUTOMATION.md                    … Claudeとの役割分担と、1日15分のルーティン
+products/01-invoice-gas/         … 商品01: 請求書自動作成ツール（GAS、テスト付き）
+sales/listings.md                … BOOTH・ココナラの出品文とプロフィール文
+sales/proposal-templates.md      … 案件に送る提案文のテンプレート
+tracker/kpi.csv                  … 週次KPIの記録シート
 ```
+
+テストの実行: `npm test`

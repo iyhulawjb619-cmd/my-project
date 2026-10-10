@@ -1,0 +1,7 @@
+{
+  "name": "side-income-products",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"products/**/*.test.js\""
+  }
+}
