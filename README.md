@@ -92,6 +92,7 @@
 ```
 README.md                        … この戦略ドキュメント
 OPTIONS.md                       … 稼ぎ方の全体マップ（受託・SNS・商品・起業・事業買収）
+SUCCESSION.md                    … 事業承継（会社を引き継ぐ・買う）の進め方とリスク
 PDCA.md                          … 何をやるかの結論と、週次PDCAの回し方
 AUTOMATION.md                    … Claudeとの役割分担と、1日15分のルーティン
 products/01-invoice-gas/         … 商品01: 請求書自動作成ツール（GAS、テスト付き）
@@ -101,6 +102,7 @@ sns/strategy.md                  … SNS運用計画と最初の10投稿
 tracker/kpi.csv                  … 週次KPIの記録シート
 tracker/experiments.csv          … 実験（仮説・合格ライン・結果）の記録
 tools/weekly-report.js           … KPIから詰まりを判定し次の打ち手を出す
+tools/deal-check.js              … 承継・M&A案件の価格と返済余力をチェック
 ```
 
 テストの実行: `npm test` ／ 週次レポート: `npm run report`
