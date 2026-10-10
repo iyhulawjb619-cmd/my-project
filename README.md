@@ -91,11 +91,14 @@
 
 ```
 README.md                        … この戦略ドキュメント
+PDCA.md                          … 何をやるかの結論と、週次PDCAの回し方
 AUTOMATION.md                    … Claudeとの役割分担と、1日15分のルーティン
 products/01-invoice-gas/         … 商品01: 請求書自動作成ツール（GAS、テスト付き）
 sales/listings.md                … BOOTH・ココナラの出品文とプロフィール文
 sales/proposal-templates.md      … 案件に送る提案文のテンプレート
 tracker/kpi.csv                  … 週次KPIの記録シート
+tracker/experiments.csv          … 実験（仮説・合格ライン・結果）の記録
+tools/weekly-report.js           … KPIから詰まりを判定し次の打ち手を出す
 ```
 
-テストの実行: `npm test`
+テストの実行: `npm test` ／ 週次レポート: `npm run report`

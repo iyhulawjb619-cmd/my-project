@@ -2,6 +2,7 @@
   "name": "side-income-products",
   "private": true,
   "scripts": {
-    "test": "node --test \"products/**/*.test.js\""
+    "test": "node --test \"products/**/*.test.js\" \"tools/**/*.test.js\"",
+    "report": "node tools/weekly-report.js"
   }
 }
