@@ -93,6 +93,7 @@
 README.md                        … この戦略ドキュメント
 OPTIONS.md                       … 稼ぎ方の全体マップ（受託・SNS・商品・起業・事業買収）
 SUCCESSION.md                    … 事業承継（会社を引き継ぐ・買う）の進め方とリスク
+plans/                           … 週次PDCAの計画（毎週月曜に自動追加）
 PDCA.md                          … 何をやるかの結論と、週次PDCAの回し方
 AUTOMATION.md                    … Claudeとの役割分担と、1日15分のルーティン
 products/01-invoice-gas/         … 商品01: 請求書自動作成ツール（GAS、テスト付き）
