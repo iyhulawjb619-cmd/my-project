@@ -1,0 +1,12 @@
+{
+  "capital": 5000000,
+  "monthlyDeposit": 100000,
+  "targetNet": 300000,
+  "leverageCap": 25,
+  "losscutRatio": 1.0,
+  "stressDrop": 0.2,
+  "positions": [
+    { "pair": "MXN/JPY（例・数値は仮）", "rate": 8.5, "units": 100000, "swapPerDay": 15 },
+    { "pair": "USD/JPY（例・数値は仮）", "rate": 150, "units": 10000, "swapPerDay": 150 }
+  ]
+}

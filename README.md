@@ -104,6 +104,7 @@ tracker/kpi.csv                  … 週次KPIの記録シート
 tracker/experiments.csv          … 実験（仮説・合格ライン・結果）の記録
 tools/weekly-report.js           … KPIから詰まりを判定し次の打ち手を出す
 tools/deal-check.js              … 承継・M&A案件の価格と返済余力をチェック
+tools/swap-sim.js               … スワップ運用の月収・税・ロスカット耐性・目標到達時期を試算
 ```
 
 テストの実行: `npm test` ／ 週次レポート: `npm run report`
