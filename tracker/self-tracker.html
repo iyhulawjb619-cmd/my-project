@@ -1,0 +1,616 @@
+<title>昨日の自分に勝つ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column scoreboard. Verdict on top, period task lists, then match history charts. */
+:root{
+  --bg:#F3F5F9; --surface:#FFFFFF; --line:#DCE1EA; --fg:#141922; --muted:#5D6677;
+  --accent:#2F5BEA; --accent-soft:#E3EAFD; --win:#0F8F63; --win-soft:#DDF3EA; --lose:#C93C33; --lose-soft:#FBE3E1; --tie:#8A93A3;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F131B; --surface:#171D28; --line:#2A3242; --fg:#E8ECF3; --muted:#98A2B5;
+  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F131B; --surface:#171D28; --line:#2A3242; --fg:#E8ECF3; --muted:#98A2B5;
+  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
+h1,h2{margin:0;text-wrap:balance}
+h2{font-size:15px;font-weight:700;letter-spacing:.04em}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-size:22px;letter-spacing:.02em}
+.datenav{display:flex;align-items:center;gap:6px}
+.datenav button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 10px}
+.datenav .d{font-family:var(--f-num);font-weight:700;min-width:9.5em;text-align:center}
+
+.banner{background:var(--accent-soft);border-radius:10px;padding:10px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:13px}
+.banner button{border:0;background:var(--accent);color:var(--surface);border-radius:8px;padding:5px 12px;font-weight:700}
+
+/* verdict */
+.verdict{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;text-align:center}
+.side .lbl{font-size:12px;color:var(--muted);letter-spacing:.08em}
+.side .big{font-family:var(--f-num);font-weight:700;font-size:40px;line-height:1.1}
+.side .sub{font-size:12px;color:var(--muted)}
+.stamp{font-family:var(--f-display);font-size:26px;padding:6px 14px;border-radius:10px;border:2px solid currentColor;transform:rotate(-4deg)}
+.stamp.win{color:var(--win)} .stamp.lose{color:var(--lose)} .stamp.tie{color:var(--tie)}
+.hint{text-align:center;font-size:13px;color:var(--muted)}
+.pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.pill{font-size:12px;border-radius:999px;padding:3px 10px;background:var(--bg);border:1px solid var(--line)}
+.pill b{font-family:var(--f-num)}
+
+/* tasks */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px}
+.tabs button{flex:1;border:0;background:none;border-radius:7px;padding:7px 4px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;line-height:1.3}
+.tabs button small{font-family:var(--f-num);font-weight:500;font-size:11px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+.tabs button[aria-selected="true"] small{color:var(--surface);opacity:.85}
+.list{display:grid;gap:6px;margin-top:10px}
+.task{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.task .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.task .t small{display:block;font-size:11px;color:var(--muted)}
+.task.done .t span{color:var(--muted);text-decoration:line-through}
+.chk{width:26px;height:26px;flex:none;border-radius:8px;border:2px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
+.task.done .chk{background:var(--win);border-color:var(--win);color:var(--surface)}
+.chk svg{width:14px;height:14px}
+.del{border:0;background:none;color:var(--muted);font-size:12px;padding:4px 6px;border-radius:6px}
+.del.arm{background:var(--lose-soft);color:var(--lose);font-weight:700}
+.grip{border:0;background:none;color:var(--muted);padding:6px 2px;margin-left:-4px;cursor:grab;touch-action:none;border-radius:6px;flex:none}
+.grip svg{width:10px;height:16px;display:block}
+.task.dragging{box-shadow:0 6px 18px rgb(0 0 0 / .14);border-color:var(--accent);position:relative;z-index:2}
+.task.dragging .grip{cursor:grabbing;color:var(--accent)}
+.ttl{cursor:text}
+.ren{font:inherit;width:100%;border:1px solid var(--accent);border-radius:6px;padding:2px 6px;background:var(--bg);color:var(--fg)}
+.plus{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
+.bar{position:relative}
+.bar s{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg);opacity:.45}
+.ok{color:var(--win);font-weight:700} .ng{color:var(--lose);font-weight:700}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;width:100%}
+.heat i{aspect-ratio:1;border-radius:3px;background:var(--bg);border:1px solid var(--line);max-width:100%}
+.heat i.l0{background:var(--lose-soft);border-color:transparent}
+.heat i.l1{background:color-mix(in srgb,var(--accent) 30%,var(--surface));border-color:transparent}
+.heat i.l2{background:color-mix(in srgb,var(--accent) 55%,var(--surface));border-color:transparent}
+.heat i.l3{background:color-mix(in srgb,var(--accent) 80%,var(--surface));border-color:transparent}
+.heat i.l4{background:var(--win);border-color:transparent}
+.heat i.now{outline:2px solid var(--fg);outline-offset:1px}
+.heatwrap{display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:stretch;font-size:10px;color:var(--muted)}
+.heatwrap .wd{display:grid;grid-template-rows:repeat(7,1fr);gap:3px;line-height:1}
+.heatwrap .wd span{display:flex;align-items:center}
+.scale{display:flex;gap:4px;align-items:center;font-size:11px;color:var(--muted);justify-content:flex-end}
+.scale i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.prog{display:flex;align-items:center;gap:6px}
+.prog input{width:5.5em;font-family:var(--f-num);border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--bg);color:var(--fg);text-align:right}
+.bar{height:4px;background:var(--bg);border-radius:4px;margin-top:4px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px}
+form.add{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+form.add input,form.add select{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--fg);min-width:0}
+form.add #f-title{flex:1 1 200px}
+form.add #f-target{width:6em} form.add #f-unit{width:5em}
+form.add button{border:0;background:var(--fg);color:var(--bg);border-radius:8px;padding:7px 14px;font-weight:700}
+
+/* charts */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.cardhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:none;padding:4px 12px;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--f-num);font-size:13px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.record{font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.06em}
+td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
+.res{font-weight:700;font-size:12px;border-radius:6px;padding:2px 8px;white-space:nowrap}
+.res.win{background:var(--win-soft);color:var(--win)} .res.lose{background:var(--lose-soft);color:var(--lose)} .res.tie{background:var(--bg);color:var(--tie)}
+.tablewrap{overflow-x:auto}
+.status{font-size:12px;color:var(--muted);text-align:center}
+@media (max-width:440px){.side .big{font-size:30px}.stamp{font-size:20px;padding:4px 10px}}
+@media (prefers-reduced-motion:no-preference){.stamp{animation:pop .35s ease-out}@keyframes pop{from{transform:rotate(-4deg) scale(1.3);opacity:.3}}}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1 class="brand">昨日の自分に勝つ</h1>
+    <div class="datenav">
+      <button id="prev" aria-label="前の日">‹</button>
+      <span class="d" id="curdate"></span>
+      <button id="next" aria-label="次の日">›</button>
+      <button id="today">今日</button>
+    </div>
+  </div>
+
+  <div class="banner" id="sample-banner" hidden>
+    <span>「（例）」の付いたタスクと過去データはサンプルです。自分のタスクを入れたら消してください。</span>
+    <button id="clear-sample">サンプルを消す</button>
+  </div>
+
+  <section class="verdict" id="verdict" aria-live="polite"></section>
+
+  <section>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="list" id="list"></div>
+    <form class="add" id="add">
+      <input id="f-title" placeholder="タスクを追加" autocomplete="off" required>
+      <select id="f-kind" aria-label="繰り返し">
+        <option value="repeat">毎回やる</option>
+        <option value="once">今回だけ</option>
+      </select>
+      <input id="f-target" type="number" min="0" step="any" placeholder="目標値" aria-label="目標値（任意）">
+      <input id="f-unit" placeholder="単位" aria-label="単位">
+      <button type="submit">追加</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <h2>達成率の推移</h2>
+      <div class="seg" id="range">
+        <button data-r="daily" aria-pressed="true">30日</button>
+        <button data-r="weekly" aria-pressed="false">12週</button>
+        <button data-r="monthly" aria-pressed="false">12ヶ月</button>
+      </div>
+    </div>
+    <div class="record" id="record"></div>
+    <div class="chart" id="chart"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead"><h2>過去半年の毎日</h2><span class="muted" style="font-size:12px" id="heat-sum"></span></div>
+    <div class="heatwrap"><div class="wd"><span>月</span><span></span><span>水</span><span></span><span>金</span><span></span><span>日</span></div><div class="heat" id="heat"></div></div>
+    <div class="scale">達成率 <i style="background:var(--lose-soft)"></i>0% <i style="background:color-mix(in srgb,var(--accent) 30%,var(--surface))"></i><i style="background:color-mix(in srgb,var(--accent) 55%,var(--surface))"></i><i style="background:color-mix(in srgb,var(--accent) 80%,var(--surface))"></i><i style="background:var(--win)"></i>100%</div>
+  </section>
+
+  <section class="card">
+    <h2>過去の自分との対戦成績</h2>
+    <div class="tablewrap"><table id="vs-table"></table></div>
+    <p class="muted" style="margin:0;font-size:12px">今週・今月は「同じ日数だけ経った時点」で比べています（例: 木曜なら先週の月〜木と比較）。</p>
+  </section>
+
+  <p class="status" id="status">データを読み込み中…</p>
+</div>
+
+<script>
+const CAD = {
+  daily:{label:"今日", unit:"日"}, weekly:{label:"今週", unit:"週"},
+  monthly:{label:"今月", unit:"月"}, yearly:{label:"今年", unit:"年"}
+};
+const pad = n => String(n).padStart(2,"0");
+const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function isoWeek(d){
+  const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dn = x.getUTCDay() || 7; x.setUTCDate(x.getUTCDate() + 4 - dn);
+  const y0 = new Date(Date.UTC(x.getUTCFullYear(),0,1));
+  return `${x.getUTCFullYear()}-W${pad(Math.ceil(((x - y0)/864e5 + 1)/7))}`;
+}
+function keyOf(c, d){
+  if (c==="daily") return dayKey(d);
+  if (c==="weekly") return isoWeek(d);
+  if (c==="monthly") return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  return String(d.getFullYear());
+}
+function shift(d, c, n){
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (c==="daily") x.setDate(x.getDate()+n);
+  else if (c==="weekly") x.setDate(x.getDate()+7*n);
+  else if (c==="monthly"){ const day=x.getDate(); x.setDate(1); x.setMonth(x.getMonth()+n); x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth()+1, 0).getDate())); }
+  else x.setFullYear(x.getFullYear()+n);
+  return x;
+}
+const weekStart = d => { const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; };
+const monthStart = d => new Date(d.getFullYear(), d.getMonth(), 1);
+const WD = ["日","月","火","水","木","金","土"];
+const fmtDate = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}（${WD[d.getDay()]}）`;
+const pct = r => r==null ? "—" : Math.round(r*100) + "%";
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const state = { tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
+try { const t = localStorage.getItem("sft-tab"); if (t && CAD[t]) state.cad = t; const r = localStorage.getItem("sft-range"); if (r) state.range = r; } catch(e){}
+const today0 = () => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); };
+state.cur = today0();
+
+function activeIn(t, c, key){
+  if (t.cadence !== c) return false;
+  if (t.onlyKey) return t.onlyKey === key;
+  return t.startKey <= key && (!t.endKey || key <= t.endKey);
+}
+function tasksFor(c, key){
+  return Object.values(state.tasks).filter(t => activeIn(t,c,key)).sort((a,b)=>((a.order??0)-(b.order??0)) || (a.created||"").localeCompare(b.created||""));
+}
+const check = (c,key) => state.checks[`${c}_${key}`] || {done:{}, values:{}};
+function scoreOf(t, ch){
+  if (t.target > 0) return Math.min(1, (Number(ch.values?.[t.id])||0) / t.target);
+  return ch.done?.[t.id] ? 1 : 0;
+}
+function rateFor(c, key){
+  const ts = tasksFor(c,key); if (!ts.length) return null;
+  const ch = check(c,key); let s = 0; ts.forEach(t => s += scoreOf(t,ch));
+  return { rate: s/ts.length, count: s, total: ts.length };
+}
+const dayRate = d => rateFor("daily", dayKey(d))?.rate ?? null;
+function avgDays(from, to){ // inclusive, Date objects
+  let s=0,n=0; for (let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){ const r=dayRate(d); if (r!=null){s+=r;n++;} }
+  return n ? s/n : null;
+}
+function judge(a, b){
+  if (a==null || b==null) return null;
+  if (Math.abs(a-b) < 1e-9) return a>=1 ? "win" : "tie";
+  return a > b ? "win" : "lose";
+}
+const RES = {win:"勝ち", lose:"負け", tie:"引き分け"};
+
+/* ---------- render ---------- */
+function render(){
+  if (drag){ drag.pending = true; return; }
+  const cur = state.cur, isToday = dayKey(cur)===dayKey(today0());
+  document.getElementById("curdate").textContent = fmtDate(cur);
+  document.getElementById("next").disabled = isToday;
+  document.getElementById("sample-banner").hidden = !Object.keys(state.tasks).some(id => id.startsWith("sample-"));
+  renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable();
+}
+
+function renderVerdict(){
+  const cur = state.cur, y = shift(cur,"daily",-1);
+  const a = rateFor("daily", dayKey(cur)), b = rateFor("daily", dayKey(y));
+  const el = document.getElementById("verdict");
+  if (!a){ el.innerHTML = `<div class="hint">「今日」タブに毎日やるタスクを追加すると、昨日の自分との勝負が始まります。</div>`; return; }
+  const j = judge(a.rate, b?.rate ?? null);
+  const isToday = dayKey(cur)===dayKey(today0());
+  let hint = "";
+  if (b && j !== "win"){
+    let more = null;
+    for (let k=1; k<=a.total-Math.floor(a.count); k++){
+      const r = Math.min(a.total, Math.floor(a.count)+k)/a.total;
+      if (r > b.rate + 1e-9 || (b.rate>=1 && r>=1)){ more = k; break; }
+    }
+    hint = more ? `あと <b class="num">${more}</b> 個で昨日を超えます` : "";
+  } else if (j==="win") hint = a.rate>=1 ? "全部達成。完勝です" : "昨日を上回っています";
+  if (!b) hint = "昨日のデータがないので、今日が最初の記録です";
+  const streak = winStreak(cur), pb = bests(cur);
+  const wk = avgDays(weekStart(cur), cur), lwk = avgDays(shift(weekStart(cur),"daily",-7), shift(cur,"daily",-7));
+  el.innerHTML = `
+    <div class="vs">
+      <div class="side"><div class="lbl">${isToday?"今日の自分":"この日"}</div><div class="big">${pct(a.rate)}</div><div class="sub num">${fmtN(a.count)} / ${a.total}</div></div>
+      <div>${j ? `<span class="stamp ${j}">${isToday && j!=="win" ? "途中" : RES[j]}</span>` : `<span class="muted">VS</span>`}</div>
+      <div class="side"><div class="lbl">昨日の自分</div><div class="big muted">${pct(b?.rate)}</div><div class="sub num">${b?`${fmtN(b.count)} / ${b.total}`:"記録なし"}</div></div>
+    </div>
+    ${hint?`<div class="hint">${hint}</div>`:""}
+    <div class="pills">
+      <span class="pill">連勝 <b>${streak}</b> 日（自己ベスト <b>${Math.max(pb.streak,streak)}</b>）</span>
+      ${pb.avg7!=null?`<span class="pill">7日平均の自己ベスト <b>${pct(pb.avg7)}</b></span>`:""}
+      <span class="pill">今週平均 <b>${pct(wk)}</b> ／ 先週同時点 <b>${pct(lwk)}</b></span>
+    </div>`;
+}
+const fmtN = n => Number.isInteger(n) ? n : n.toFixed(1);
+function winStreak(cur){
+  // counts finished days ending yesterday, plus today if already winning
+  let n = 0, d = shift(cur,"daily",-1);
+  const t = judge(dayRate(cur), dayRate(shift(cur,"daily",-1)));
+  for (let i=0;i<400;i++){
+    const j = judge(dayRate(d), dayRate(shift(d,"daily",-1)));
+    if (j!=="win") break; n++; d = shift(d,"daily",-1);
+  }
+  return n + (t==="win"?1:0);
+}
+
+function periodLabel(c, d){
+  if (c==="daily") return `${d.getMonth()+1}/${d.getDate()}`;
+  if (c==="weekly"){ const s=weekStart(d), e=shift(s,"daily",6); return `${s.getMonth()+1}/${s.getDate()}–${e.getMonth()+1}/${e.getDate()}`; }
+  if (c==="monthly") return `${d.getMonth()+1}月`;
+  return `${d.getFullYear()}年`;
+}
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = Object.entries(CAD).map(([c,v]) => {
+    const r = rateFor(c, keyOf(c,state.cur));
+    return `<button role="tab" data-c="${c}" aria-selected="${state.cad===c}">${c==="yearly"?"年間目標":v.unit+"次"}<small>${r?pct(r.rate):periodLabel(c,state.cur)}</small></button>`;
+  }).join("");
+}
+function periodFrac(c, d){
+  if (c==="weekly") return ((d.getDay()+6)%7 + 1)/7;
+  if (c==="monthly") return d.getDate()/new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  if (c==="yearly"){ const s=new Date(d.getFullYear(),0,1), e=new Date(d.getFullYear()+1,0,1); return (d-s+864e5)/(e-s); }
+  return 1;
+}
+const CHECK_SVG = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function renderList(){
+  if (drag){ drag.pending = true; return; }
+  const c = state.cad, key = keyOf(c,state.cur), ts = tasksFor(c,key), ch = check(c,key);
+  const box = document.getElementById("list");
+  const frac = periodFrac(c, state.cur);
+  const fracName = {weekly:"週", monthly:"月", yearly:"年"}[c];
+  if (!ts.length){
+    box.innerHTML = `<div class="empty">${periodLabel(c,state.cur)}の${c==="yearly"?"年間目標":CAD[c].unit+"次タスク"}はまだありません。下の入力欄から追加できます。</div>`;
+  } else box.innerHTML = ts.map(t => {
+    const id = esc(t.id), done = scoreOf(t,ch) >= 1;
+    const tag = t.onlyKey ? "今回だけ" : `毎${CAD[c].unit}`;
+    const grip = ts.length>1 ? `<button class="grip" data-grip="${id}" aria-label="${esc(t.title)}を並べ替え（上下キーでも移動）"><svg viewBox="0 0 10 16"><g fill="currentColor"><circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/></g></svg></button>` : "";
+    const title = state.editing===t.id
+      ? `<input class="ren" id="ren-${id}" data-ren="${id}" value="${esc(t.title)}" aria-label="タスク名">`
+      : `<span class="ttl" data-edit="${id}" title="タップで名前を変更">${esc(t.title)}</span>`;
+    const del = `<button class="del ${state.armed===t.id?"arm":""}" data-del="${id}" aria-label="${esc(t.title)}を削除">${state.armed===t.id?"削除する":"×"}</button>`;
+    if (t.target > 0){
+      const v = Number(ch.values?.[t.id])||0, r = Math.min(1, v/t.target);
+      const pace = fracName ? ` ・ ${fracName}の経過 ${pct(frac)}／達成 ${pct(r)} ${r>=frac-1e-9?'<b class="ok">ペース以上</b>':'<b class="ng">ペース遅れ</b>'}` : "";
+      return `<div class="task ${done?"done":""}" data-id="${id}">${grip}
+        <div class="t">${title}<small>${tag} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
+        <div class="prog"><input id="v-${id}" data-v="${id}" type="number" step="any" min="0" value="${v}" aria-label="${esc(t.title)}の実績"><span class="muted">${esc(t.unit||"")}</span><button class="plus" data-plus="${id}" aria-label="${esc(t.title)}に1を足す">＋1</button></div>
+        ${del}</div>`;
+    }
+    return `<div class="task ${done?"done":""}" data-id="${id}">${grip}
+      <button class="chk" data-tog="${id}" aria-pressed="${done}" aria-label="${esc(t.title)}を完了にする">${done?CHECK_SVG:""}</button>
+      <div class="t">${title}<small>${tag}</small></div>
+      ${del}</div>`;
+  }).join("");
+  if (state.editing){ const i=document.getElementById("ren-"+state.editing); if (i){ i.focus(); i.select(); } }
+  const showT = c!=="daily";
+  document.getElementById("f-target").hidden = !showT;
+  document.getElementById("f-unit").hidden = !showT;
+  document.getElementById("f-title").placeholder = c==="yearly" ? "年間目標を追加（例: 売上 / 読書冊数）" : `${CAD[c].unit}次タスクを追加`;
+}
+
+/* ---------- chart ---------- */
+function series(){
+  const cur = state.cur, R = state.range, out = [];
+  if (R==="daily"){
+    for (let i=29;i>=0;i--){ const d=shift(cur,"daily",-i); out.push({d, v:dayRate(d), label:`${d.getMonth()+1}/${d.getDate()}`}); }
+  } else if (R==="weekly"){
+    for (let i=11;i>=0;i--){ const s=shift(weekStart(cur),"daily",-7*i), e=new Date(Math.min(+shift(s,"daily",6), +cur));
+      out.push({d:s, v:avgDays(s,e), p:rateFor("weekly",keyOf("weekly",s))?.rate ?? null, label:`${s.getMonth()+1}/${s.getDate()}`}); }
+  } else {
+    for (let i=11;i>=0;i--){ const s=shift(monthStart(cur),"monthly",-i), last=new Date(s.getFullYear(),s.getMonth()+1,0), e=new Date(Math.min(+last,+cur));
+      out.push({d:s, v:avgDays(s,e), p:rateFor("monthly",keyOf("monthly",s))?.rate ?? null, label:`${s.getMonth()+1}月`}); }
+  }
+  return out;
+}
+function renderChart(){
+  const S = series(), W=720, H=230, L=38, Rm=10, T=12, B=26, iw=W-L-Rm, ih=H-T-B, n=S.length, bw=iw/n;
+  const y = v => T + ih*(1-v);
+  let g = "";
+  [0,.5,1].forEach(v => { g += `<line x1="${L}" x2="${W-Rm}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"${v===0?"":' stroke-dasharray="3 4"'}/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v*100}%</text>`; });
+  let w=0,l=0,t=0;
+  S.forEach((s,i) => {
+    const x = L + i*bw + bw*.15, bwid = bw*.7;
+    if (s.v==null){ g += `<rect x="${x}" y="${y(0)-2}" width="${bwid}" height="2" fill="var(--line)"/>`; }
+    else {
+      const prev = i>0 ? S[i-1].v : null, j = judge(s.v, prev);
+      if (j==="win") w++; else if (j==="lose") l++; else if (j==="tie") t++;
+      const col = j==="win" ? "var(--win)" : j==="lose" ? "var(--lose)" : "var(--tie)";
+      const h = Math.max(2, ih*s.v);
+      g += `<rect x="${x}" y="${y(0)-h}" width="${bwid}" height="${h}" rx="2" fill="${col}" opacity="${i===n-1?1:.85}"><title>${s.label}: ${pct(s.v)}</title></rect>`;
+    }
+    const every = n>20 ? 5 : n>12 ? 2 : 1;
+    if ((n-1-i)%every===0) g += `<text x="${L+i*bw+bw/2}" y="${H-8}" text-anchor="middle">${s.label}</text>`;
+  });
+  // 7-day moving average (daily) or period task rate (weekly/monthly)
+  const pts = [];
+  S.forEach((s,i) => {
+    let v;
+    if (state.range==="daily"){ const win=S.slice(Math.max(0,i-6),i+1).map(x=>x.v).filter(x=>x!=null); v = win.length ? win.reduce((a,b)=>a+b,0)/win.length : null; }
+    else v = s.p;
+    if (v!=null) pts.push([L+i*bw+bw/2, y(v)]);
+  });
+  if (state.range==="daily" && pts.length>1) g += `<polyline points="${pts.map(p=>p.join(",")).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  if (state.range!=="daily") pts.forEach(p => g += `<circle cx="${p[0]}" cy="${p[1]}" r="4.5" fill="var(--surface)" stroke="var(--accent)" stroke-width="2.2"/>`);
+  if (pts.length && state.range==="daily"){ const p=pts[pts.length-1]; g += `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--accent)"/>`; }
+  document.getElementById("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="達成率の推移">${g}</svg>`;
+  const u = {daily:"日",weekly:"週",monthly:"月"}[state.range];
+  const prevName = {daily:"前日",weekly:"前週",monthly:"前月"}[state.range];
+  document.getElementById("record").innerHTML = `${prevName}の自分に対して <b class="num" style="color:var(--win)">${w}勝</b> <b class="num" style="color:var(--lose)">${l}敗</b> <b class="num muted">${t}分</b> <span class="muted">（直近${n}${u==="日"?"日":u==="週"?"週":"ヶ月"}）</span>`;
+  document.getElementById("legend").innerHTML =
+    `<span><i style="background:var(--win)"></i>${prevName}より上</span><span><i style="background:var(--lose)"></i>${prevName}より下</span><span><i style="background:var(--tie)"></i>同じ・比較なし</span>` +
+    (state.range==="daily" ? `<span><i style="background:var(--accent)"></i>7日平均</span>` : `<span><i style="background:var(--surface);border:2px solid var(--accent)"></i>${u}次タスク達成率</span>`) +
+    (state.range!=="daily" ? `<span>棒＝日次タスクの平均達成率</span>` : "");
+}
+
+function firstDay(){
+  const ks = Object.values(state.tasks).filter(t=>t.cadence==="daily").map(t=>t.startKey).sort();
+  if (!ks.length) return null; const [y,m,d] = ks[0].split("-").map(Number); return new Date(y,m-1,d);
+}
+function bests(cur){
+  const f = firstDay(); if (!f) return {streak:0, avg7:null};
+  let best=0, run=0, prev=null, bestAvg=null; const win=[];
+  for (let d=new Date(f); d<=cur; d.setDate(d.getDate()+1)){
+    const r = dayRate(d), j = judge(r, prev);
+    run = j==="win" ? run+1 : 0; if (run>best) best=run; prev = r;
+    win.push(r); if (win.length>7) win.shift();
+    const v = win.filter(x=>x!=null); if (win.length===7 && v.length===7){ const a=v.reduce((x,y)=>x+y,0)/7; if (bestAvg==null||a>bestAvg) bestAvg=a; }
+  }
+  return {streak:best, avg7:bestAvg};
+}
+function renderHeat(){
+  const cur = state.cur, end = shift(weekStart(cur),"daily",6), start = shift(weekStart(cur),"daily",-7*25);
+  let h="", n=0, full=0;
+  for (let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    const fut = d>cur, r = fut ? null : dayRate(d);
+    const cls = r==null ? "" : r>=1 ? "l4" : r<=0 ? "l0" : r<.34 ? "l1" : r<.67 ? "l2" : "l3";
+    if (r!=null){ n++; if (r>=1) full++; }
+    h += `<i class="${cls}${dayKey(d)===dayKey(cur)?" now":""}" title="${d.getMonth()+1}/${d.getDate()} ${fut?"":pct(r)}"${fut?' style="visibility:hidden"':""}></i>`;
+  }
+  document.getElementById("heat").innerHTML = h;
+  document.getElementById("heat-sum").textContent = n ? `記録 ${n}日 ・ 全達成 ${full}日` : "";
+}
+function renderTable(){
+  const cur = state.cur, rows = [];
+  const add = (name, a, b, bl) => rows.push({name, a, b, bl, j:judge(a,b)});
+  add("今日 vs 昨日", dayRate(cur), dayRate(shift(cur,"daily",-1)), "昨日");
+  const ws = weekStart(cur), el = Math.round((cur-ws)/864e5);
+  add(`今週 vs 先週（${WD[1]}〜${WD[cur.getDay()]}）`, avgDays(ws,cur), avgDays(shift(ws,"daily",-7), shift(ws,"daily",el-7)), "先週");
+  const ms = monthStart(cur), pms = shift(ms,"monthly",-1), pme = new Date(Math.min(+shift(pms,"daily",cur.getDate()-1), +new Date(pms.getFullYear(),pms.getMonth()+1,0)));
+  add(`今月 vs 先月（1〜${cur.getDate()}日）`, avgDays(ms,cur), avgDays(pms,pme), "先月");
+  add("今日 vs 過去30日平均", dayRate(cur), avgDays(shift(cur,"daily",-30), shift(cur,"daily",-1)), "30日平均");
+  add("週次タスク 今週 vs 先週", rateFor("weekly",keyOf("weekly",cur))?.rate ?? null, rateFor("weekly",keyOf("weekly",shift(cur,"weekly",-1)))?.rate ?? null, "先週");
+  add("月次タスク 今月 vs 先月", rateFor("monthly",keyOf("monthly",cur))?.rate ?? null, rateFor("monthly",keyOf("monthly",shift(cur,"monthly",-1)))?.rate ?? null, "先月");
+  add("年間目標 今年 vs 去年", rateFor("yearly",keyOf("yearly",cur))?.rate ?? null, rateFor("yearly",keyOf("yearly",shift(cur,"yearly",-1)))?.rate ?? null, "去年");
+  document.getElementById("vs-table").innerHTML = `<tr><th>勝負</th><th style="text-align:right">いま</th><th style="text-align:right">過去</th><th>結果</th></tr>` +
+    rows.map(r => `<tr><td>${r.name}</td><td class="n">${pct(r.a)}</td><td class="n muted">${pct(r.b)}</td><td>${r.j?`<span class="res ${r.j}">${r.j!=="win" && dayKey(cur)===dayKey(today0()) && !r.name.includes("年") ? "途中" : RES[r.j]}</span>`:'<span class="muted">—</span>'}</td></tr>`).join("");
+}
+
+/* ---------- writes ---------- */
+function saveCheck(c, key, ch){
+  const id = `${c}_${key}`;
+  state.checks[id] = ch; render();
+  if (!state.db) return;
+  state.db.collection("checks").doc(id).set({cadence:c, key, done:ch.done||{}, values:ch.values||{}, updatedAt:new Date().toISOString()})
+    .catch(e => setStatus("保存できませんでした: " + (e?.message||e?.code||"")));
+}
+function toggle(id){
+  const c = state.cad, key = keyOf(c,state.cur), ch = structuredClone(check(c,key));
+  ch.done = ch.done||{}; if (ch.done[id]) delete ch.done[id]; else ch.done[id] = true;
+  saveCheck(c,key,ch);
+}
+function setValue(id, v){
+  const c = state.cad, key = keyOf(c,state.cur), ch = structuredClone(check(c,key));
+  ch.values = ch.values||{}; ch.values[id] = Math.max(0, Number(v)||0);
+  saveCheck(c,key,ch);
+}
+function addTask(e){
+  e.preventDefault();
+  const title = document.getElementById("f-title").value.trim(); if (!title) return;
+  const c = state.cad, key = keyOf(c,state.cur), once = document.getElementById("f-kind").value==="once";
+  const target = c!=="daily" ? Number(document.getElementById("f-target").value)||0 : 0;
+  const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const t = {id, title, cadence:c, created:new Date().toISOString(), startKey:key,
+    order: Math.max(0, ...Object.values(state.tasks).filter(x=>x.cadence===c).map(x=>x.order??0)) + 1};
+  if (once) t.onlyKey = key;
+  if (target>0){ t.target = target; t.unit = document.getElementById("f-unit").value.trim(); }
+  state.tasks[id] = t;
+  document.getElementById("f-title").value = ""; document.getElementById("f-target").value = ""; document.getElementById("f-unit").value = "";
+  render();
+  state.db?.collection("tasks").doc(id).set(t).catch(e => setStatus("保存できませんでした: " + (e?.message||"")));
+}
+function removeTask(id){
+  const t = state.tasks[id]; if (!t) return;
+  const key = keyOf(t.cadence, state.cur), prevKey = keyOf(t.cadence, shift(state.cur, t.cadence, -1));
+  // keep history: end the task at the previous period, delete outright if it never ran before
+  if (t.onlyKey || t.startKey > prevKey){
+    delete state.tasks[id]; render();
+    state.db?.collection("tasks").doc(id).delete();
+  } else {
+    t.endKey = prevKey; render();
+    state.db?.collection("tasks").doc(id).update({endKey:prevKey});
+  }
+}
+async function clearSample(){
+  const db = state.db; if (!db) return;
+  setStatus("サンプルを削除中…");
+  for (const id of Object.keys(state.tasks).filter(i=>i.startsWith("sample-"))){ delete state.tasks[id]; await db.collection("tasks").doc(id).delete(); }
+  for (const [cid, ch] of Object.entries(state.checks)){
+    const done = Object.fromEntries(Object.entries(ch.done||{}).filter(([k])=>!k.startsWith("sample-")));
+    const values = Object.fromEntries(Object.entries(ch.values||{}).filter(([k])=>!k.startsWith("sample-")));
+    if (Object.keys(done).length===Object.keys(ch.done||{}).length && Object.keys(values).length===Object.keys(ch.values||{}).length) continue;
+    if (!Object.keys(done).length && !Object.keys(values).length){ delete state.checks[cid]; await db.collection("checks").doc(cid).delete(); }
+    else { state.checks[cid] = {...ch, done, values}; await db.collection("checks").doc(cid).update({done, values}); }
+  }
+  setStatus(""); render();
+}
+const setStatus = s => document.getElementById("status").textContent = s;
+
+/* ---------- events ---------- */
+document.getElementById("tabs").addEventListener("click", e => { const b=e.target.closest("[data-c]"); if(!b) return; state.cad=b.dataset.c; state.armed=null; try{localStorage.setItem("sft-tab",state.cad)}catch(_){}; render(); });
+document.getElementById("range").addEventListener("click", e => { const b=e.target.closest("[data-r]"); if(!b) return; state.range=b.dataset.r; try{localStorage.setItem("sft-range",state.range)}catch(_){};
+  document.querySelectorAll("#range button").forEach(x=>x.setAttribute("aria-pressed", x===b)); renderChart(); });
+document.getElementById("list").addEventListener("click", e => {
+  const tg = e.target.closest("[data-tog]"); if (tg){ toggle(tg.dataset.tog); return; }
+  const pl = e.target.closest("[data-plus]"); if (pl){ const i=document.getElementById("v-"+pl.dataset.plus); setValue(pl.dataset.plus, (Number(i?.value)||0)+1); return; }
+  const ed = e.target.closest("[data-edit]"); if (ed){ state.editing = ed.dataset.edit; renderList(); return; }
+  const d = e.target.closest("[data-del]"); if (d){ const id=d.dataset.del; if (state.armed===id){ state.armed=null; removeTask(id); } else { state.armed=id; renderList(); setTimeout(()=>{ if(state.armed===id){state.armed=null;renderList();} }, 4000); } }
+});
+document.getElementById("list").addEventListener("change", e => { const i=e.target.closest("[data-v]"); if(i) setValue(i.dataset.v, i.value); });
+document.getElementById("add").addEventListener("submit", addTask);
+
+/* rename */
+function finishRename(input, save){
+  const id = input.dataset.ren, t = state.tasks[id]; state.editing = null;
+  const v = input.value.trim();
+  if (save && t && v && v!==t.title){ t.title = v; state.db?.collection("tasks").doc(id).update({title:v}).catch(e=>setStatus("保存できませんでした: "+(e?.message||""))); }
+  render();
+}
+const listEl = document.getElementById("list");
+listEl.addEventListener("keydown", e => {
+  const r = e.target.closest("[data-ren]");
+  if (r){ if (e.key==="Enter" && !e.isComposing){ e.preventDefault(); finishRename(r,true); } else if (e.key==="Escape") finishRename(r,false); return; }
+  const g = e.target.closest("[data-grip]");
+  if (g && (e.key==="ArrowUp"||e.key==="ArrowDown")){
+    e.preventDefault();
+    const ids = [...listEl.querySelectorAll(".task")].map(x=>x.dataset.id), i = ids.indexOf(g.dataset.grip), j = i + (e.key==="ArrowUp"?-1:1);
+    if (j<0 || j>=ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]]; commitOrder(ids);
+    listEl.querySelector(`[data-grip="${CSS.escape(g.dataset.grip)}"]`)?.focus();
+  }
+});
+listEl.addEventListener("focusout", e => { const r=e.target.closest("[data-ren]"); if (r && state.editing===r.dataset.ren) finishRename(r,true); });
+
+/* reorder by drag (mouse and touch) */
+let drag = null;
+function commitOrder(ids){
+  ids.forEach((id,i) => { const t = state.tasks[id]; if (!t || t.order===i+1) return; t.order = i+1;
+    state.db?.collection("tasks").doc(id).update({order:i+1}).catch(e=>setStatus("並び順を保存できませんでした: "+(e?.message||""))); });
+  render();
+}
+listEl.addEventListener("pointerdown", e => {
+  const g = e.target.closest("[data-grip]"); if (!g || e.button>0) return;
+  e.preventDefault();
+  const row = g.closest(".task"); drag = {row, id:g.dataset.grip, moved:false, pid:e.pointerId};
+  row.classList.add("dragging"); g.setPointerCapture(e.pointerId);
+});
+listEl.addEventListener("pointermove", e => {
+  if (!drag || e.pointerId!==drag.pid) return;
+  for (const r of listEl.querySelectorAll(".task")){
+    if (r===drag.row) continue;
+    const b = r.getBoundingClientRect();
+    if (e.clientY>b.top && e.clientY<b.bottom){
+      const before = e.clientY < b.top + b.height/2;
+      const ref = before ? r : r.nextSibling;
+      if (ref!==drag.row && ref!==drag.row.nextSibling){ listEl.insertBefore(drag.row, ref); drag.moved = true; }
+      break;
+    }
+  }
+  const pad = 60; if (e.clientY < pad) window.scrollBy(0,-8); else if (e.clientY > innerHeight-pad) window.scrollBy(0,8);
+});
+function endDrag(e){
+  if (!drag || (e && e.pointerId!==drag.pid)) return;
+  const d = drag; drag = null; d.row.classList.remove("dragging");
+  if (d.moved) commitOrder([...listEl.querySelectorAll(".task")].map(x=>x.dataset.id));
+  else if (d.pending) render();
+}
+listEl.addEventListener("pointerup", endDrag);
+listEl.addEventListener("pointercancel", endDrag);
+document.getElementById("prev").onclick = () => { state.cur = shift(state.cur,"daily",-1); render(); };
+document.getElementById("next").onclick = () => { if (dayKey(state.cur)!==dayKey(today0())){ state.cur = shift(state.cur,"daily",1); render(); } };
+document.getElementById("today").onclick = () => { state.cur = today0(); render(); };
+document.getElementById("clear-sample").onclick = clearSample;
+document.getElementById("chart").setAttribute("aria-live","off");
+// roll over to the new day if the page stays open past midnight
+setInterval(() => { const t=today0(); if (state.lastToday && state.lastToday!==dayKey(t) && dayKey(state.cur)===state.lastToday){ state.cur=t; render(); } state.lastToday=dayKey(t); }, 60000);
+state.lastToday = dayKey(today0());
+
+render();
+
+(async () => {
+  const timer = setTimeout(() => { if (!state.loaded) setStatus("保存先に接続できません。このページはclaude.aiにサインインした状態で開いてください。"); }, 10000);
+  const db = await (window.claude?.use?.("db") ?? Promise.resolve(null));
+  if (!db){ clearTimeout(timer); setStatus("保存先に接続できないため、入力内容は保存されません。"); return; }
+  state.db = db;
+  let got = 0;
+  const done = () => { if (++got===2){ state.loaded=true; clearTimeout(timer); setStatus(""); } render(); };
+  let f1=false, f2=false;
+  db.collection("tasks").onSnapshot(snap => { state.tasks = {}; snap.docs.forEach(d => state.tasks[d.id] = {...d.data(), id:d.id}); if(!f1){f1=true;done();} else render(); },
+    e => { clearTimeout(timer); setStatus("タスクを読み込めませんでした: " + (e?.message||e?.code)); });
+  db.collection("checks").onSnapshot(snap => { state.checks = {}; snap.docs.forEach(d => state.checks[d.id] = d.data()); if(!f2){f2=true;done();} else render(); },
+    e => { clearTimeout(timer); setStatus("記録を読み込めませんでした: " + (e?.message||e?.code)); });
+})();
+</script>
