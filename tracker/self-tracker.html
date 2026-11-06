@@ -7,16 +7,17 @@
 :root{
   --bg:#F3F5F9; --surface:#FFFFFF; --line:#DCE1EA; --fg:#141922; --muted:#5D6677;
   --accent:#2F5BEA; --accent-soft:#E3EAFD; --win:#0F8F63; --win-soft:#DDF3EA; --lose:#C93C33; --lose-soft:#FBE3E1; --tie:#8A93A3;
+  --p1:#2F5BEA; --p2:#0F8F63; --p3:#B5651D; --p4:#8E44AD; --p5:#C2185B;
   --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
   --f-num:"JetBrains Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0F131B; --surface:#171D28; --line:#2A3242; --fg:#E8ECF3; --muted:#98A2B5;
-  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; color-scheme:dark}}
+  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; --p1:#7C9BFF; --p2:#3CC892; --p3:#E9A15B; --p4:#C38BE0; --p5:#F06FA0; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0F131B; --surface:#171D28; --line:#2A3242; --fg:#E8ECF3; --muted:#98A2B5;
-  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; color-scheme:dark}
+  --accent:#7C9BFF; --accent-soft:#1E2A4A; --win:#3CC892; --win-soft:#123528; --lose:#F07167; --lose-soft:#3A1B1A; --tie:#7D8798; --p1:#7C9BFF; --p2:#3CC892; --p3:#E9A15B; --p4:#C38BE0; --p5:#F06FA0; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
 .wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:22px}
@@ -118,6 +119,40 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
 .res.win{background:var(--win-soft);color:var(--win)} .res.lose{background:var(--lose-soft);color:var(--lose)} .res.tie{background:var(--bg);color:var(--tie)}
 .tablewrap{overflow-x:auto}
 .status{font-size:12px;color:var(--muted);text-align:center}
+.ideal{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:14px;min-width:0}
+.eyebrow{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.vision{font-size:19px;font-weight:700;line-height:1.55;margin:0;text-wrap:pretty;white-space:pre-wrap}
+.pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.pillar{border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px;align-content:start;min-width:0;border-top:3px solid var(--pc)}
+.pillar h3{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pillar p{margin:0;font-size:12px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.pillar .st{font-size:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.trend{font-weight:700;font-size:12px}
+.trend.up{color:var(--win)} .trend.down{color:var(--lose)} .trend.flat{color:var(--tie)}
+.warn{font-size:11px;font-weight:700;color:var(--lose);background:var(--lose-soft);border-radius:6px;padding:1px 7px;justify-self:start}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.dark{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.btn:disabled{opacity:.5;cursor:default}
+.ed{display:grid;gap:14px}
+.ed fieldset{border:0;padding:0;margin:0;display:grid;gap:10px;min-width:0}
+.ed legend{font-weight:700;font-size:14px;padding:0;margin-bottom:6px}
+.ed label{display:grid;gap:4px;font-size:13px;font-weight:500}
+.ed label span{font-size:11px;color:var(--muted);font-weight:400}
+.ed textarea,.ed input,.ed select{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--fg);width:100%;min-width:0}
+.ed textarea{resize:vertical;min-height:58px}
+.pedit{border:1px solid var(--line);border-left:4px solid var(--pc);border-radius:10px;padding:10px;display:grid;gap:8px}
+.pedit .head{display:flex;gap:8px}
+.pedit .head .btn{flex:none;white-space:nowrap}
+.sug{display:grid;gap:4px;font-size:13px}
+.sug label{display:flex;gap:8px;align-items:flex-start;font-weight:400;grid-template-columns:none}
+.sug input{width:auto;margin-top:4px}
+.sug .cad{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;white-space:nowrap}
+.aimsg{font-size:13px;color:var(--muted)}
+.pil{font:inherit;font-size:11px;border:1px solid var(--line);border-radius:999px;padding:0 6px;background:var(--bg);color:var(--muted);max-width:11em}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--pc);margin-right:5px}
+.task{border-left:3px solid var(--pc,var(--line))}
 @media (max-width:440px){.side .big{font-size:30px}.stamp{font-size:20px;padding:4px 10px}}
 @media (prefers-reduced-motion:no-preference){.stamp{animation:pop .35s ease-out}@keyframes pop{from{transform:rotate(-4deg) scale(1.3);opacity:.3}}}
 </style>
@@ -138,6 +173,8 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
     <button id="clear-sample">サンプルを消す</button>
   </div>
 
+  <section class="ideal" id="ideal" aria-label="理想の自分"></section>
+
   <section class="verdict" id="verdict" aria-live="polite"></section>
 
   <section>
@@ -149,6 +186,7 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
         <option value="repeat">毎回やる</option>
         <option value="once">今回だけ</option>
       </select>
+      <select id="f-pillar" aria-label="理想の柱"></select>
       <input id="f-target" type="number" min="0" step="any" placeholder="目標値" aria-label="目標値（任意）">
       <input id="f-unit" placeholder="単位" aria-label="単位">
       <button type="submit">追加</button>
@@ -218,7 +256,7 @@ const fmtDate = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate(
 const pct = r => r==null ? "—" : Math.round(r*100) + "%";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-const state = { tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
+const state = { ideal:{vision:"", horizon:"1年後", answers:{}, pillars:[]}, editing_ideal:false, draft:null, ai:null, sample:null, tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
 try { const t = localStorage.getItem("sft-tab"); if (t && CAD[t]) state.cad = t; const r = localStorage.getItem("sft-range"); if (r) state.range = r; } catch(e){}
 const today0 = () => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); };
 state.cur = today0();
@@ -260,7 +298,7 @@ function render(){
   document.getElementById("curdate").textContent = fmtDate(cur);
   document.getElementById("next").disabled = isToday;
   document.getElementById("sample-banner").hidden = !Object.keys(state.tasks).some(id => id.startsWith("sample-"));
-  renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable();
+  if (!state.editing_ideal) renderIdeal(); renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable();
 }
 
 function renderVerdict(){
@@ -341,21 +379,28 @@ function renderList(){
     const title = state.editing===t.id
       ? `<input class="ren" id="ren-${id}" data-ren="${id}" value="${esc(t.title)}" aria-label="タスク名">`
       : `<span class="ttl" data-edit="${id}" title="タップで名前を変更">${esc(t.title)}</span>`;
+    const pi = state.ideal.pillars.findIndex(p=>p.id===t.pillar);
+    const pc = pi>=0 ? ` style="--pc:var(--p${pi%5+1})"` : "";
+    const pilSel = state.ideal.pillars.length ? ` ・ <select class="pil" data-pil="${id}" aria-label="${esc(t.title)}の柱"><option value="">柱なし</option>${state.ideal.pillars.map(p=>`<option value="${esc(p.id)}"${p.id===t.pillar?" selected":""}>${esc(p.name||"（無名）")}</option>`).join("")}</select>` : "";
     const del = `<button class="del ${state.armed===t.id?"arm":""}" data-del="${id}" aria-label="${esc(t.title)}を削除">${state.armed===t.id?"削除する":"×"}</button>`;
     if (t.target > 0){
       const v = Number(ch.values?.[t.id])||0, r = Math.min(1, v/t.target);
       const pace = fracName ? ` ・ ${fracName}の経過 ${pct(frac)}／達成 ${pct(r)} ${r>=frac-1e-9?'<b class="ok">ペース以上</b>':'<b class="ng">ペース遅れ</b>'}` : "";
-      return `<div class="task ${done?"done":""}" data-id="${id}">${grip}
-        <div class="t">${title}<small>${tag} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
+      return `<div class="task ${done?"done":""}" data-id="${id}"${pc}>${grip}
+        <div class="t">${title}<small>${tag}${pilSel} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
         <div class="prog"><input id="v-${id}" data-v="${id}" type="number" step="any" min="0" value="${v}" aria-label="${esc(t.title)}の実績"><span class="muted">${esc(t.unit||"")}</span><button class="plus" data-plus="${id}" aria-label="${esc(t.title)}に1を足す">＋1</button></div>
         ${del}</div>`;
     }
-    return `<div class="task ${done?"done":""}" data-id="${id}">${grip}
+    return `<div class="task ${done?"done":""}" data-id="${id}"${pc}>${grip}
       <button class="chk" data-tog="${id}" aria-pressed="${done}" aria-label="${esc(t.title)}を完了にする">${done?CHECK_SVG:""}</button>
-      <div class="t">${title}<small>${tag}</small></div>
+      <div class="t">${title}<small>${tag}${pilSel}</small></div>
       ${del}</div>`;
   }).join("");
   if (state.editing){ const i=document.getElementById("ren-"+state.editing); if (i){ i.focus(); i.select(); } }
+  const fp = document.getElementById("f-pillar"), keep = fp.value;
+  fp.hidden = !state.ideal.pillars.length;
+  fp.innerHTML = `<option value="">柱なし</option>` + state.ideal.pillars.map(p=>`<option value="${esc(p.id)}">${esc(p.name||"（無名）")}</option>`).join("");
+  if ([...fp.options].some(o=>o.value===keep)) fp.value = keep;
   const showT = c!=="daily";
   document.getElementById("f-target").hidden = !showT;
   document.getElementById("f-unit").hidden = !showT;
@@ -484,6 +529,7 @@ function addTask(e){
   const target = c!=="daily" ? Number(document.getElementById("f-target").value)||0 : 0;
   const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
   const t = {id, title, cadence:c, created:new Date().toISOString(), startKey:key,
+    pillar: document.getElementById("f-pillar").value || null,
     order: Math.max(0, ...Object.values(state.tasks).filter(x=>x.cadence===c).map(x=>x.order??0)) + 1};
   if (once) t.onlyKey = key;
   if (target>0){ t.target = target; t.unit = document.getElementById("f-unit").value.trim(); }
@@ -529,8 +575,187 @@ document.getElementById("list").addEventListener("click", e => {
   const ed = e.target.closest("[data-edit]"); if (ed){ state.editing = ed.dataset.edit; renderList(); return; }
   const d = e.target.closest("[data-del]"); if (d){ const id=d.dataset.del; if (state.armed===id){ state.armed=null; removeTask(id); } else { state.armed=id; renderList(); setTimeout(()=>{ if(state.armed===id){state.armed=null;renderList();} }, 4000); } }
 });
-document.getElementById("list").addEventListener("change", e => { const i=e.target.closest("[data-v]"); if(i) setValue(i.dataset.v, i.value); });
+document.getElementById("list").addEventListener("change", e => {
+  const ps = e.target.closest("[data-pil]");
+  if (ps){ const t = state.tasks[ps.dataset.pil]; if (t){ t.pillar = ps.value || null; render(); state.db?.collection("tasks").doc(t.id).update({pillar:t.pillar}).catch(err=>setStatus("保存できませんでした: "+(err?.message||""))); } return; } const i=e.target.closest("[data-v]"); if(i) setValue(i.dataset.v, i.value); });
 document.getElementById("add").addEventListener("submit", addTask);
+
+
+/* ---------- ideal self ---------- */
+const QUESTIONS = [
+  ["day","その時、どんな1日を過ごしていますか？","朝起きてから寝るまで。場所、時間の使い方、一緒にいる人"],
+  ["work","仕事・お金はどうなっていますか？","収入、働き方、トレードの成績やスタイル"],
+  ["body","体と健康はどうなっていますか？","体型、体力、睡眠、食事"],
+  ["skill","どんな力・知識を身につけていますか？","英語、専門知識、読んだ本"],
+  ["mind","心の状態と人間関係はどうですか？","気持ちの余裕、大事な人との関係"],
+  ["quit","やめていること・手放したものは？","やめた習慣、断るようになったこと"],
+  ["why","なぜその自分になりたいのですか？","いちばん深い理由。迷った時に立ち返る言葉"],
+];
+const CAD_JA = {daily:"毎日", weekly:"毎週", monthly:"毎月", yearly:"今年"};
+const newId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+function pillarDayRate(pid, d){
+  const key = dayKey(d), ts = tasksFor("daily", key).filter(t=>t.pillar===pid);
+  if (!ts.length) return null; const ch = check("daily", key);
+  return ts.reduce((a,t)=>a+scoreOf(t,ch),0)/ts.length;
+}
+function pillarAvg(pid, from, to){
+  let s=0,n=0; for (let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){ const r=pillarDayRate(pid,d); if (r!=null){s+=r;n++;} }
+  return n ? s/n : null;
+}
+function renderIdeal(){
+  const el = document.getElementById("ideal");
+  if (state.editing_ideal){ renderIdealEditor(el); return; }
+  const I = state.ideal;
+  if (!I.vision && !I.pillars.length){
+    el.innerHTML = `<div class="eyebrow">理想の自分</div>
+      <p style="margin:0">まだ決まっていません。いくつかの質問に答えると、目指す姿がはっきりし、そこへ向かう年・月・週・日のタスクに分けられます。</p>
+      <div class="row"><button class="btn primary" data-act="edit-ideal">理想の自分を決める</button></div>`;
+    return;
+  }
+  const cur = state.cur, a0 = shift(cur,"daily",-6), b1 = shift(cur,"daily",-7), b0 = shift(cur,"daily",-13);
+  const cards = I.pillars.map((p,i) => {
+    const mine = Object.values(state.tasks).filter(t => t.pillar===p.id && activeIn(t, t.cadence, keyOf(t.cadence, cur)));
+    const cnt = c => mine.filter(t=>t.cadence===c).length;
+    const now = pillarAvg(p.id, a0, cur), prev = pillarAvg(p.id, b0, b1);
+    let trend = "";
+    if (now!=null && prev!=null){ const d = now-prev; trend = Math.abs(d)<0.03 ? `<span class="trend flat">→ 横ばい</span>` : d>0 ? `<span class="trend up">↑ 近づいている</span>` : `<span class="trend down">↓ 離れている</span>`; }
+    const yearly = mine.filter(t=>t.cadence==="yearly").map(t => { const r = scoreOf(t, check("yearly", keyOf("yearly",cur))); return `${esc(t.title)} ${pct(r)}`; }).join(" ・ ");
+    return `<div class="pillar" style="--pc:var(--p${i%5+1})">
+      <h3><span><span class="dot"></span>${esc(p.name||"（無名）")}</span>${trend}</h3>
+      ${p.ideal?`<p>${esc(p.ideal)}</p>`:""}
+      <div class="st"><span>直近7日 <b class="num">${pct(now)}</b></span><span class="muted">前の7日 <span class="num">${pct(prev)}</span></span></div>
+      ${yearly?`<div class="st muted">${yearly}</div>`:""}
+      ${mine.length ? `<div class="st muted">行動: 日${cnt("daily")}・週${cnt("weekly")}・月${cnt("monthly")}・年${cnt("yearly")}</div>` : `<span class="warn">まだ行動がありません</span>`}
+    </div>`;
+  }).join("");
+  const unassigned = Object.values(state.tasks).filter(t => !t.pillar && activeIn(t, t.cadence, keyOf(t.cadence, cur))).length;
+  el.innerHTML = `<div class="eyebrow">${esc(I.horizon||"")}の理想の自分</div>
+    ${I.vision?`<p class="vision">${esc(I.vision)}</p>`:""}
+    ${cards?`<div class="pillars">${cards}</div>`:""}
+    <div class="row">
+      <button class="btn" data-act="edit-ideal">理想を見直す</button>
+      ${unassigned && I.pillars.length ? `<span class="aimsg">柱が決まっていないタスクが ${unassigned} 個あります。タスクの「柱なし」から選べます。</span>` : ""}
+    </div>`;
+}
+function renderIdealEditor(el){
+  const D = state.draft;
+  const ai = state.ai;
+  const pills = D.pillars.map((p,i) => `<div class="pedit" style="--pc:var(--p${i%5+1})">
+      <div class="head"><input id="pn-${i}" data-pf="${i}.name" value="${esc(p.name||"")}" placeholder="柱の名前（例: トレーダー）" aria-label="柱の名前"><button type="button" class="btn" data-act="del-pillar" data-i="${i}" aria-label="この柱を削除">削除</button></div>
+      <textarea id="pi-${i}" data-pf="${i}.ideal" rows="2" placeholder="この分野での理想の姿（例: 私は感情ではなくルールでトレードする人）" aria-label="理想の姿">${esc(p.ideal||"")}</textarea>
+      ${p.suggest?.length ? `<div class="sug"><span class="eyebrow">追加するタスク案</span>${p.suggest.map((t,j)=>`<label><input type="checkbox" id="sg-${i}-${j}" data-sg="${i}.${j}" ${t.on?"checked":""}><span><span class="cad">${CAD_JA[t.cadence]||t.cadence}</span> ${esc(t.title)}${t.target?` <span class="muted">（目標 ${t.target}${esc(t.unit||"")}）</span>`:""}</span></label>`).join("")}</div>` : ""}
+    </div>`).join("");
+  const assignN = Object.keys(D.assign||{}).length;
+  el.innerHTML = `<form class="ed" id="ideal-form">
+    <div class="eyebrow">理想の自分を決める</div>
+    <fieldset><legend>1. いつの自分を描きますか？</legend>
+      <select id="q-horizon" data-df="horizon" aria-label="期間">${["半年後","1年後","3年後","5年後","10年後"].map(h=>`<option${h===D.horizon?" selected":""}>${h}</option>`).join("")}</select>
+    </fieldset>
+    <fieldset><legend>2. その時の自分を具体的に書いてください</legend>
+      ${QUESTIONS.map(([k,q,hint])=>`<label for="q-${k}">${q}<span>${hint}</span><textarea id="q-${k}" data-qa="${k}" rows="2">${esc(D.answers[k]||"")}</textarea></label>`).join("")}
+    </fieldset>
+    ${state.sample ? `<div class="row"><button type="button" class="btn dark" data-act="ai" ${ai?.busy?"disabled":""}>${ai?.busy?"整理しています…":"Claudeに整理してもらう"}</button>${ai?.busy?`<button type="button" class="btn" data-act="ai-stop">止める</button>`:""}<span class="aimsg">${ai?.msg?esc(ai.msg):"回答から理想の文章・柱・タスク案を作ります。今あるタスクも柱に振り分けます。"}</span></div>` : ""}
+    <fieldset><legend>3. 理想の自分を一文で</legend>
+      <textarea id="q-vision" data-df="vision" rows="3" placeholder="例: 私はルールを守って安定して勝つトレーダーで、英語で海外の情報を直接読み、毎朝体を動かしてから1日を始めている。">${esc(D.vision||"")}</textarea>
+    </fieldset>
+    <fieldset><legend>4. 理想を支える柱（3〜5本がおすすめ）</legend>
+      ${pills}
+      <div class="row"><button type="button" class="btn" data-act="add-pillar">柱を追加</button></div>
+    </fieldset>
+    ${assignN ? `<p class="aimsg" style="margin:0">今あるタスク ${assignN} 個を柱に振り分けます。</p>` : ""}
+    <div class="row"><button type="submit" class="btn primary">保存する</button><button type="button" class="btn" data-act="cancel-ideal">やめる</button></div>
+  </form>`;
+}
+function openIdealEditor(){
+  state.draft = structuredClone(state.ideal); state.draft.answers = state.draft.answers || {}; state.draft.assign = {};
+  if (!state.draft.pillars.length) state.draft.pillars = [{id:newId("p"), name:"", ideal:""}];
+  state.editing_ideal = true; state.ai = null; renderIdeal();
+  document.getElementById("ideal").scrollIntoView({block:"start"});
+}
+async function saveIdeal(){
+  const D = state.draft, db = state.db;
+  const pillars = D.pillars.filter(p => (p.name||"").trim() || (p.ideal||"").trim()).map(p => ({id:p.id, name:(p.name||"").trim(), ideal:(p.ideal||"").trim()}));
+  const doc = {vision:(D.vision||"").trim(), horizon:D.horizon, answers:D.answers, pillars, updatedAt:new Date().toISOString()};
+  state.ideal = doc;
+  const writes = [];
+  let order = Math.max(0, ...Object.values(state.tasks).map(t=>t.order??0));
+  D.pillars.forEach(p => (p.suggest||[]).filter(t=>t.on).forEach(s => {
+    if (!pillars.some(x=>x.id===p.id)) return;
+    const c = CAD[s.cadence] ? s.cadence : "daily", id = newId("t");
+    const t = {id, title:s.title, cadence:c, created:new Date().toISOString(), startKey:keyOf(c,state.cur), pillar:p.id, order:++order};
+    if (c!=="daily" && Number(s.target)>0){ t.target = Number(s.target); t.unit = s.unit||""; }
+    state.tasks[id] = t; writes.push(db?.collection("tasks").doc(id).set(t));
+  }));
+  Object.entries(D.assign||{}).forEach(([tid,pid]) => { const t = state.tasks[tid]; if (t && pillars.some(x=>x.id===pid)){ t.pillar = pid; writes.push(db?.collection("tasks").doc(tid).update({pillar:pid})); } });
+  Object.values(state.tasks).forEach(t => { if (t.pillar && !pillars.some(x=>x.id===t.pillar)){ t.pillar = null; writes.push(db?.collection("tasks").doc(t.id).update({pillar:null})); } });
+  state.editing_ideal = false; state.draft = null; state.ai = null; render();
+  try { await db?.doc("ideal/main").set(doc); await Promise.all(writes); }
+  catch(e){ setStatus("保存できませんでした: " + (e?.message||e?.code||"")); }
+}
+async function askClaude(){
+  const D = state.draft, sample = state.sample; if (!sample) return;
+  const current = Object.values(state.tasks).filter(t => activeIn(t, t.cadence, keyOf(t.cadence, state.cur)));
+  const answers = QUESTIONS.map(([k,q]) => `■${q}\n${(D.answers[k]||"").trim() || "（未記入）"}`).join("\n\n");
+  const prompt = `あなたは目標設計のコーチです。以下は、ある人が「${D.horizon}の理想の自分」について答えた内容です。これを、毎日の行動で近づける形に整理してください。
+
+${answers}
+
+いま取り組んでいるタスク（id: 頻度 タイトル）:
+${current.map(t=>`${t.id}: ${CAD_JA[t.cadence]} ${t.title}`).join("\n") || "（なし）"}
+
+すでに書かれている理想の文章: ${(D.vision||"").trim() || "（なし）"}
+
+ルール:
+- vision: 本人の言葉を生かした、現在形の「私は〜」で始まる2〜3文。具体的な数字や情景を入れる。
+- pillars: 理想を支える柱を3〜5本。name は短い名前（10文字以内）、ideal は「私は〜な人」という現在形の1文。
+- 各柱の tasks: その柱で新しく始めるタスク。yearly を1つ（測れる目標なら target と unit を入れる）、monthly を0〜1つ、weekly を1つ、daily を0〜2つ。いま取り組んでいるタスクと同じ内容は入れない。
+- daily は、いま取り組んでいる毎日のタスクと合わせて8個以内に収まる量にする。続けられる小ささにする。
+- assign: いま取り組んでいるタスクのうち、どれかの柱に当てはまるものを {"taskId":"...","pillar":"柱のname"} で全部挙げる。
+- 回答が未記入の項目は推測しすぎず、書かれている内容を優先する。
+
+次のJSONだけを返してください:
+{"vision":"...","pillars":[{"name":"...","ideal":"...","tasks":[{"title":"...","cadence":"daily|weekly|monthly|yearly","target":数値または null,"unit":"単位または空文字"}]}],"assign":[{"taskId":"...","pillar":"..."}]}`;
+  const ctl = new AbortController();
+  state.ai = {busy:true, ctl, msg:"考えています。30秒〜1分ほどかかります。"}; renderIdeal();
+  try {
+    const r = await sample.json(prompt, {signal:ctl.signal, modelTier:"default"});
+    if (!r || !Array.isArray(r.pillars)) throw {code:"bad_shape"};
+    if (r.vision) D.vision = String(r.vision);
+    D.pillars = r.pillars.slice(0,5).map(p => ({
+      id: (D.pillars.find(x => (x.name||"").trim() && x.name.trim()===String(p.name||"").trim())?.id) || newId("p"),
+      name: String(p.name||""), ideal: String(p.ideal||""),
+      suggest: (Array.isArray(p.tasks)?p.tasks:[]).filter(t=>t&&t.title).map(t => ({title:String(t.title), cadence:CAD[t.cadence]?t.cadence:"daily", target:Number(t.target)>0?Number(t.target):null, unit:String(t.unit||""), on:true}))
+    }));
+    D.assign = {};
+    (Array.isArray(r.assign)?r.assign:[]).forEach(a => { const p = D.pillars.find(x=>x.name===a.pillar); if (p && state.tasks[a.taskId]) D.assign[a.taskId] = p.id; });
+    state.ai = {msg:"案ができました。文章や柱は自由に書き換えられます。要らないタスク案はチェックを外して「保存する」を押してください。"};
+  } catch(e){
+    const m = {cancelled:"止めました。", not_granted:"Claudeの利用が許可されなかったため、手で書いてください。", rate_limited:"混み合っています。少し待ってからもう一度押してください。"}[e?.code] || "うまく整理できませんでした。もう一度押すか、手で書いてください。";
+    state.ai = {msg:m};
+  }
+  renderIdeal();
+}
+const idealEl = document.getElementById("ideal");
+idealEl.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a==="edit-ideal") openIdealEditor();
+  else if (a==="cancel-ideal"){ state.ai?.ctl?.abort(); state.editing_ideal=false; state.draft=null; state.ai=null; renderIdeal(); }
+  else if (a==="add-pillar"){ if (state.draft.pillars.length<6){ state.draft.pillars.push({id:newId("p"), name:"", ideal:""}); renderIdeal(); document.getElementById("pn-"+(state.draft.pillars.length-1))?.focus(); } }
+  else if (a==="del-pillar"){ state.draft.pillars.splice(Number(b.dataset.i),1); renderIdeal(); }
+  else if (a==="ai") askClaude();
+  else if (a==="ai-stop") state.ai?.ctl?.abort();
+});
+idealEl.addEventListener("input", e => {
+  const D = state.draft; if (!D) return; const t = e.target;
+  if (t.dataset.qa) D.answers[t.dataset.qa] = t.value;
+  else if (t.dataset.df) D[t.dataset.df] = t.value;
+  else if (t.dataset.pf){ const [i,f] = t.dataset.pf.split("."); D.pillars[i][f] = t.value; }
+  else if (t.dataset.sg){ const [i,j] = t.dataset.sg.split(".").map(Number); D.pillars[i].suggest[j].on = t.checked; }
+});
+idealEl.addEventListener("change", e => { const t=e.target; if (t.dataset.sg && state.draft){ const [i,j]=t.dataset.sg.split(".").map(Number); state.draft.pillars[i].suggest[j].on=t.checked; } else if (t.dataset.df && state.draft) state.draft[t.dataset.df]=t.value; });
+idealEl.addEventListener("submit", e => { e.preventDefault(); saveIdeal(); });
 
 /* rename */
 function finishRename(input, save){
@@ -605,6 +830,11 @@ render();
   const db = await (window.claude?.use?.("db") ?? Promise.resolve(null));
   if (!db){ clearTimeout(timer); setStatus("保存先に接続できないため、入力内容は保存されません。"); return; }
   state.db = db;
+  db.doc("ideal/main").onSnapshot(snap => {
+    if (snap.exists){ const d = snap.data(); state.ideal = {vision:d.vision||"", horizon:d.horizon||"1年後", answers:d.answers||{}, pillars:Array.isArray(d.pillars)?d.pillars:[]}; }
+    render();
+  }, () => {});
+  claude.use("sample").then(sm => { state.sample = sm; if (state.editing_ideal) renderIdeal(); }).catch(()=>{});
   let got = 0;
   const done = () => { if (++got===2){ state.loaded=true; clearTimeout(timer); setStatus(""); } render(); };
   let f1=false, f2=false;
