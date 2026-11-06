@@ -71,6 +71,26 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .task.dragging{box-shadow:0 6px 18px rgb(0 0 0 / .14);border-color:var(--accent);position:relative;z-index:2}
 .task.dragging .grip{cursor:grabbing;color:var(--accent)}
 .ttl{cursor:text}
+.tedit{display:grid;gap:6px;margin:2px 0}
+.tedit label{display:grid;gap:2px;font-size:11px;color:var(--muted)}
+.tedit .row{gap:6px}
+.chk.half{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-size:11px;font-weight:700}
+.minb{border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:6px;padding:1px 8px;font-size:11px;margin-top:4px;max-width:100%;text-align:left;overflow-wrap:anywhere}
+.minb[aria-pressed="true"]{background:var(--accent-soft);border-style:solid;font-weight:700}
+.task.miss{background:color-mix(in srgb,var(--lose-soft) 55%,var(--surface))}
+.misschip{font-size:10px;font-weight:700;color:var(--lose);border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.streak{font-family:var(--f-num);color:var(--win);font-weight:700}
+.alert{border-radius:10px;padding:10px 12px;font-size:13px;background:var(--lose-soft);color:var(--fg);display:grid;gap:2px}
+.alert b{color:var(--lose)}
+.focus{border-radius:10px;padding:10px 12px;font-size:13px;background:var(--accent-soft);display:grid;gap:2px}
+.focus .eyebrow{color:var(--accent)}
+.rv{display:grid;gap:10px}
+.rv label{display:grid;gap:4px;font-size:13px;font-weight:500}
+.rv label span{font-size:11px;color:var(--muted);font-weight:400}
+.rv textarea{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--fg);width:100%;resize:vertical;min-height:54px}
+.coach{white-space:pre-wrap;font-size:14px;line-height:1.75;border-left:3px solid var(--accent);padding:4px 0 4px 12px;overflow-wrap:anywhere}
+.flag{font-size:11px;font-weight:700;color:var(--lose);white-space:nowrap}
+.good{font-size:11px;font-weight:700;color:var(--win);white-space:nowrap}
 .ren{font:inherit;width:100%;border:1px solid var(--accent);border-radius:6px;padding:2px 6px;background:var(--bg);color:var(--fg)}
 .plus{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
 .bar{position:relative}
@@ -179,6 +199,7 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
 
   <section>
     <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="pre-list" style="display:grid;gap:8px;margin-top:10px"></div>
     <div class="list" id="list"></div>
     <form class="add" id="add">
       <input id="f-title" placeholder="タスクを追加" autocomplete="off" required>
@@ -192,6 +213,8 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
       <button type="submit">追加</button>
     </form>
   </section>
+
+  <section class="card" id="review"></section>
 
   <section class="card">
     <div class="cardhead">
@@ -256,7 +279,7 @@ const fmtDate = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate(
 const pct = r => r==null ? "—" : Math.round(r*100) + "%";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-const state = { ideal:{vision:"", horizon:"1年後", answers:{}, pillars:[]}, editing_ideal:false, draft:null, ai:null, sample:null, tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
+const state = { ideal:{vision:"", horizon:"1年後", answers:{}, pillars:[]}, editing_ideal:false, reviews:{}, rvDraft:null, coach:null, rvMsg:"", draft:null, ai:null, sample:null, tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
 try { const t = localStorage.getItem("sft-tab"); if (t && CAD[t]) state.cad = t; const r = localStorage.getItem("sft-range"); if (r) state.range = r; } catch(e){}
 const today0 = () => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); };
 state.cur = today0();
@@ -272,7 +295,8 @@ function tasksFor(c, key){
 const check = (c,key) => state.checks[`${c}_${key}`] || {done:{}, values:{}};
 function scoreOf(t, ch){
   if (t.target > 0) return Math.min(1, (Number(ch.values?.[t.id])||0) / t.target);
-  return ch.done?.[t.id] ? 1 : 0;
+  const d = ch.done?.[t.id];
+  return d==="min" ? 0.5 : d ? 1 : 0;
 }
 function rateFor(c, key){
   const ts = tasksFor(c,key); if (!ts.length) return null;
@@ -298,7 +322,7 @@ function render(){
   document.getElementById("curdate").textContent = fmtDate(cur);
   document.getElementById("next").disabled = isToday;
   document.getElementById("sample-banner").hidden = !Object.keys(state.tasks).some(id => id.startsWith("sample-"));
-  if (!state.editing_ideal) renderIdeal(); renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable();
+  if (!state.editing_ideal) renderIdeal(); renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable(); renderReview();
 }
 
 function renderVerdict(){
@@ -330,6 +354,7 @@ function renderVerdict(){
     <div class="pills">
       <span class="pill">連勝 <b>${streak}</b> 日（自己ベスト <b>${Math.max(pb.streak,streak)}</b>）</span>
       ${pb.avg7!=null?`<span class="pill">7日平均の自己ベスト <b>${pct(pb.avg7)}</b></span>`:""}
+      ${[0,6,1].includes(cur.getDay()) && !state.reviews[keyOf("weekly",reviewWeekStart(cur))]?.updatedAt ? `<span class="pill" style="border-color:var(--lose);color:var(--lose)">週の振り返りがまだです</span>` : ""}
       <span class="pill">今週平均 <b>${pct(wk)}</b> ／ 先週同時点 <b>${pct(lwk)}</b></span>
     </div>`;
 }
@@ -376,9 +401,18 @@ function renderList(){
     const id = esc(t.id), done = scoreOf(t,ch) >= 1;
     const tag = t.onlyKey ? "今回だけ" : `毎${CAD[c].unit}`;
     const grip = ts.length>1 ? `<button class="grip" data-grip="${id}" aria-label="${esc(t.title)}を並べ替え（上下キーでも移動）"><svg viewBox="0 0 10 16"><g fill="currentColor"><circle cx="3" cy="3" r="1.4"/><circle cx="7" cy="3" r="1.4"/><circle cx="3" cy="8" r="1.4"/><circle cx="7" cy="8" r="1.4"/><circle cx="3" cy="13" r="1.4"/><circle cx="7" cy="13" r="1.4"/></g></svg></button>` : "";
-    const title = state.editing===t.id
-      ? `<input class="ren" id="ren-${id}" data-ren="${id}" value="${esc(t.title)}" aria-label="タスク名">`
-      : `<span class="ttl" data-edit="${id}" title="タップで名前を変更">${esc(t.title)}</span>`;
+    const editing = state.editing===t.id;
+    const title = editing
+      ? `<div class="tedit" data-tedit="${id}">
+          <label>タスク名<input class="ren" id="ren-${id}" data-ren="${id}" value="${esc(t.title)}"></label>
+          <label>いつ・どこでやる？（例: 朝食のあと、机で）<input class="ren" id="renw-${id}" value="${esc(t.when||"")}"></label>
+          ${t.target>0?"":`<label>最低ライン（できない日はこれだけ。例: 単語を5個）<input class="ren" id="renm-${id}" value="${esc(t.min||"")}"></label>`}
+          <div class="row"><button type="button" class="btn primary" data-esave="${id}">保存</button><button type="button" class="btn" data-ecancel="${id}">やめる</button></div>
+        </div>`
+      : `<span class="ttl" data-edit="${id}" title="タップで編集">${esc(t.title)}</span>`;
+    const miss = c==="daily" && missedYesterday(t) && !(scoreOf(t,ch)>0);
+    const stk = c==="daily" ? taskStreak(t) : 0;
+    const extra = (t.when?` ・ ${esc(t.when)}`:"") + (stk>=2?` ・ <span class="streak">${stk}日連続</span>`:"");
     const pi = state.ideal.pillars.findIndex(p=>p.id===t.pillar);
     const pc = pi>=0 ? ` style="--pc:var(--p${pi%5+1})"` : "";
     const pilSel = state.ideal.pillars.length ? ` ・ <select class="pil" data-pil="${id}" aria-label="${esc(t.title)}の柱"><option value="">柱なし</option>${state.ideal.pillars.map(p=>`<option value="${esc(p.id)}"${p.id===t.pillar?" selected":""}>${esc(p.name||"（無名）")}</option>`).join("")}</select>` : "";
@@ -387,16 +421,19 @@ function renderList(){
       const v = Number(ch.values?.[t.id])||0, r = Math.min(1, v/t.target);
       const pace = fracName ? ` ・ ${fracName}の経過 ${pct(frac)}／達成 ${pct(r)} ${r>=frac-1e-9?'<b class="ok">ペース以上</b>':'<b class="ng">ペース遅れ</b>'}` : "";
       return `<div class="task ${done?"done":""}" data-id="${id}"${pc}>${grip}
-        <div class="t">${title}<small>${tag}${pilSel} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
+        <div class="t">${title}<small>${tag}${pilSel}${extra} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
         <div class="prog"><input id="v-${id}" data-v="${id}" type="number" step="any" min="0" value="${v}" aria-label="${esc(t.title)}の実績"><span class="muted">${esc(t.unit||"")}</span><button class="plus" data-plus="${id}" aria-label="${esc(t.title)}に1を足す">＋1</button></div>
         ${del}</div>`;
     }
-    return `<div class="task ${done?"done":""}" data-id="${id}"${pc}>${grip}
-      <button class="chk" data-tog="${id}" aria-pressed="${done}" aria-label="${esc(t.title)}を完了にする">${done?CHECK_SVG:""}</button>
-      <div class="t">${title}<small>${tag}${pilSel}</small></div>
+    const half = ch.done?.[t.id]==="min";
+    const minBtn = t.min && !done && !editing ? `<button class="minb" data-min="${id}" aria-pressed="${half}">${half?"最低ラインできた":"最低ラインだけやる"}: ${esc(t.min)}</button>` : "";
+    return `<div class="task ${done?"done":""} ${miss?"miss":""}" data-id="${id}"${pc}>${grip}
+      <button class="chk ${half?"half":""}" data-tog="${id}" aria-pressed="${done}" aria-label="${esc(t.title)}を完了にする">${done?CHECK_SVG:half?"半":""}</button>
+      <div class="t">${editing?"":`${title}${miss?'<span class="misschip">昨日できていない</span>':""}`}${editing?title:""}<small>${tag}${pilSel}${extra}</small>${minBtn}</div>
       ${del}</div>`;
   }).join("");
-  if (state.editing){ const i=document.getElementById("ren-"+state.editing); if (i){ i.focus(); i.select(); } }
+  if (state.editing && !document.activeElement?.closest?.("[data-tedit]")){ const i=document.getElementById("ren-"+state.editing); if (i){ i.focus(); i.select(); } }
+  renderPreList(c, ts, ch);
   const fp = document.getElementById("f-pillar"), keep = fp.value;
   fp.hidden = !state.ideal.pillars.length;
   fp.innerHTML = `<option value="">柱なし</option>` + state.ideal.pillars.map(p=>`<option value="${esc(p.id)}">${esc(p.name||"（無名）")}</option>`).join("");
@@ -514,7 +551,12 @@ function saveCheck(c, key, ch){
 }
 function toggle(id){
   const c = state.cad, key = keyOf(c,state.cur), ch = structuredClone(check(c,key));
-  ch.done = ch.done||{}; if (ch.done[id]) delete ch.done[id]; else ch.done[id] = true;
+  ch.done = ch.done||{}; if (ch.done[id]===true) delete ch.done[id]; else ch.done[id] = true;
+  saveCheck(c,key,ch);
+}
+function toggleMin(id){
+  const c = state.cad, key = keyOf(c,state.cur), ch = structuredClone(check(c,key));
+  ch.done = ch.done||{}; if (ch.done[id]==="min") delete ch.done[id]; else ch.done[id] = "min";
   saveCheck(c,key,ch);
 }
 function setValue(id, v){
@@ -572,6 +614,10 @@ document.getElementById("range").addEventListener("click", e => { const b=e.targ
 document.getElementById("list").addEventListener("click", e => {
   const tg = e.target.closest("[data-tog]"); if (tg){ toggle(tg.dataset.tog); return; }
   const pl = e.target.closest("[data-plus]"); if (pl){ const i=document.getElementById("v-"+pl.dataset.plus); setValue(pl.dataset.plus, (Number(i?.value)||0)+1); return; }
+  const mn = e.target.closest("[data-min]"); if (mn){ toggleMin(mn.dataset.min); return; }
+  const sv = e.target.closest("[data-esave]"); if (sv){ finishEdit(sv.dataset.esave, true); return; }
+  const cn = e.target.closest("[data-ecancel]"); if (cn){ finishEdit(cn.dataset.ecancel, false); return; }
+  if (e.target.closest("[data-tedit]")) return;
   const ed = e.target.closest("[data-edit]"); if (ed){ state.editing = ed.dataset.edit; renderList(); return; }
   const d = e.target.closest("[data-del]"); if (d){ const id=d.dataset.del; if (state.armed===id){ state.armed=null; removeTask(id); } else { state.armed=id; renderList(); setTimeout(()=>{ if(state.armed===id){state.armed=null;renderList();} }, 4000); } }
 });
@@ -757,17 +803,156 @@ idealEl.addEventListener("input", e => {
 idealEl.addEventListener("change", e => { const t=e.target; if (t.dataset.sg && state.draft){ const [i,j]=t.dataset.sg.split(".").map(Number); state.draft.pillars[i].suggest[j].on=t.checked; } else if (t.dataset.df && state.draft) state.draft[t.dataset.df]=t.value; });
 idealEl.addEventListener("submit", e => { e.preventDefault(); saveIdeal(); });
 
-/* rename */
-function finishRename(input, save){
-  const id = input.dataset.ren, t = state.tasks[id]; state.editing = null;
-  const v = input.value.trim();
-  if (save && t && v && v!==t.title){ t.title = v; state.db?.collection("tasks").doc(id).update({title:v}).catch(e=>setStatus("保存できませんでした: "+(e?.message||""))); }
+
+/* ---------- follow-through: misses, streaks, focus ---------- */
+function missedYesterday(t){
+  const y = shift(state.cur,"daily",-1), k = keyOf("daily", y);
+  return activeIn(t,"daily",k) && scoreOf(t, check("daily",k)) === 0;
+}
+function taskStreak(t){
+  let n = 0, d = shift(state.cur,"daily",-1);
+  for (let i=0;i<400;i++){ const k=dayKey(d); if (!activeIn(t,"daily",k) || !(scoreOf(t,check("daily",k))>0)) break; n++; d=shift(d,"daily",-1); }
+  return n + (scoreOf(t, check("daily", dayKey(state.cur)))>0 ? 1 : 0);
+}
+function reviewWeekStart(d){ const ws = weekStart(d); return d.getDay()>=1 && d.getDay()<=3 ? shift(ws,"daily",-7) : ws; }
+function renderPreList(c, ts, ch){
+  const el = document.getElementById("pre-list"); let h = "";
+  const prev = state.reviews[keyOf("weekly", shift(weekStart(state.cur),"daily",-7))];
+  if (prev && (prev.focus||prev.change) && (c==="daily"||c==="weekly"))
+    h += `<div class="focus"><span class="eyebrow">今週のフォーカス（先週の振り返りより）</span>${prev.focus?`<div><b>${esc(prev.focus)}</b></div>`:""}${prev.change?`<div class="muted">変えること: ${esc(prev.change)}</div>`:""}</div>`;
+  if (c==="daily"){
+    const miss = ts.filter(t => missedYesterday(t) && !(scoreOf(t,ch)>0));
+    if (miss.length) h += `<div class="alert"><div><b>2日連続で休まない</b>：昨日できなかったタスクが ${miss.length} 個あります。</div><div class="muted">${miss.map(t=>esc(t.title)).join("、")}。全部できなくても、最低ラインだけで流れを切らないでください。${miss.some(t=>!t.min)?"最低ラインはタスク名をタップすると決められます。":""}</div></div>`;
+  }
+  el.innerHTML = h;
+}
+
+/* ---------- weekly review + coach ---------- */
+function taskHealth(t){
+  const cur = state.cur;
+  if (t.cadence==="daily"){
+    const rate = (from,to) => { let s=0,n=0; for (let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){ const k=dayKey(d); if (!activeIn(t,"daily",k)) continue; s+=scoreOf(t,check("daily",k)); n++; } return n?s/n:null; };
+    return {now: rate(shift(cur,"daily",-13), cur), prev: rate(shift(cur,"daily",-27), shift(cur,"daily",-14)), span:"14日"};
+  }
+  if (t.cadence==="weekly"){
+    const rate = (a,b) => { let s=0,n=0; for (let i=a;i<=b;i++){ const k=keyOf("weekly",shift(cur,"weekly",-i)); if (!activeIn(t,"weekly",k)) continue; s+=scoreOf(t,check("weekly",k)); n++; } return n?s/n:null; };
+    return {now: rate(0,3), prev: rate(4,7), span:"4週"};
+  }
+  return null;
+}
+function healthRows(){
+  const cur = state.cur;
+  return Object.values(state.tasks).filter(t => (t.cadence==="daily"||t.cadence==="weekly") && activeIn(t,t.cadence,keyOf(t.cadence,cur)))
+    .sort((a,b)=>((a.order??0)-(b.order??0)))
+    .map(t => ({t, h:taskHealth(t), pillar: state.ideal.pillars.find(p=>p.id===t.pillar)?.name || ""}));
+}
+function renderReview(){
+  const el = document.getElementById("review");
+  if (el.contains(document.activeElement) && document.activeElement.tagName==="TEXTAREA") return;
+  const ws = reviewWeekStart(state.cur), key = keyOf("weekly", ws), we = shift(ws,"daily",6);
+  const saved = state.reviews[key] || {};
+  const D = state.rvDraft?.key===key ? state.rvDraft : (state.rvDraft = {key, good:saved.good||"", bad:saved.bad||"", change:saved.change||"", focus:saved.focus||""});
+  const coach = state.coach?.key===key ? state.coach : null;
+  const coachText = coach?.text ?? saved.coach ?? "";
+  const rows = healthRows();
+  const day = state.cur.getDay(), due = (day===0||day===6||day===1) && !saved.updatedAt;
+  el.innerHTML = `<div class="cardhead"><h2>週の振り返り <span class="muted num" style="font-weight:400">${ws.getMonth()+1}/${ws.getDate()}–${we.getMonth()+1}/${we.getDate()}</span></h2>${saved.updatedAt?'<span class="good">記入済み</span>':due?'<span class="flag">今日やりましょう</span>':""}</div>
+    ${rows.length?`<div class="tablewrap"><table><tr><th>タスク</th><th style="text-align:right">直近</th><th style="text-align:right">その前</th><th></th></tr>${rows.map(({t,h,pillar}) => {
+      const tag = h.now==null ? "" : h.now<0.5 ? '<span class="flag">見直し候補</span>' : h.prev!=null && h.now>h.prev+0.05 ? '<span class="good">伸びている</span>' : h.now>=0.85 ? '<span class="good">定着</span>' : "";
+      return `<tr><td>${esc(t.title)}<div class="muted" style="font-size:11px">${t.cadence==="daily"?"毎日":"毎週"}・${h.span}${pillar?` ・ ${esc(pillar)}`:""}</div></td><td class="n">${pct(h.now)}</td><td class="n muted">${pct(h.prev)}</td><td>${tag}</td></tr>`; }).join("")}</table></div>
+    <p class="muted" style="margin:0;font-size:12px">達成率50%未満が続くタスクは、根性ではなく設計の問題です。量を減らす、やる時間を決める、最低ラインを作る、のどれかで直します。</p>`:""}
+    <div class="rv">
+      <label>良かったこと<span>できたこと、うまくいった理由</span><textarea id="rv-good" data-rv="good" rows="2">${esc(D.good)}</textarea></label>
+      <label>できなかったこと・その理由<span>「やる気がなかった」ではなく、何が邪魔したか</span><textarea id="rv-bad" data-rv="bad" rows="2">${esc(D.bad)}</textarea></label>
+      <label>来週変えること<span>時間、場所、量、順番のどれかを1つ具体的に</span><textarea id="rv-change" data-rv="change" rows="2">${esc(D.change)}</textarea></label>
+      <label>来週いちばん大事なこと<span>これだけは必ずやる、を1つ</span><textarea id="rv-focus" data-rv="focus" rows="1">${esc(D.focus)}</textarea></label>
+      <div class="row">
+        <button class="btn primary" data-rvact="save">振り返りを保存</button>
+        ${state.sample?`<button class="btn dark" data-rvact="coach" ${coach?.busy?"disabled":""}>${coach?.busy?"考えています…":"Claudeにコーチしてもらう"}</button>${coach?.busy?'<button class="btn" data-rvact="stop">止める</button>':""}`:""}
+        <span class="aimsg">${esc(coach?.msg || state.rvMsg || "")}</span>
+      </div>
+      ${coachText?`<div><div class="eyebrow" style="margin-bottom:6px">コーチより</div><div class="coach">${esc(coachText)}</div></div>`:""}
+    </div>`;
+}
+async function saveReview(extra){
+  const D = state.rvDraft; if (!D) return;
+  const doc = {...(state.reviews[D.key]||{}), week:D.key, good:D.good, bad:D.bad, change:D.change, focus:D.focus, ...extra, updatedAt:new Date().toISOString()};
+  state.reviews[D.key] = doc;
+  try { await state.db?.collection("reviews").doc(D.key).set(doc); state.rvMsg = "保存しました。"; }
+  catch(e){ state.rvMsg = "保存できませんでした: " + (e?.message||""); }
   render();
+}
+async function askCoach(){
+  const sample = state.sample, D = state.rvDraft; if (!sample || !D) return;
+  const ws = reviewWeekStart(state.cur), we = shift(ws,"daily",6);
+  const thisW = avgDays(ws, new Date(Math.min(+we, +state.cur))), lastW = avgDays(shift(ws,"daily",-7), shift(ws,"daily",-1));
+  const rows = healthRows().map(({t,h,pillar}) => `- ${t.title}（${t.cadence==="daily"?"毎日":"毎週"}${pillar?`／柱: ${pillar}`:""}${t.when?`／いつ: ${t.when}`:""}${t.min?`／最低ライン: ${t.min}`:"／最低ラインなし"}）直近${h.span} ${pct(h.now)}、その前 ${pct(h.prev)}`).join("\n");
+  const goals = Object.values(state.tasks).filter(t=>t.target>0 && activeIn(t,t.cadence,keyOf(t.cadence,state.cur))).map(t => {
+    const r = scoreOf(t, check(t.cadence, keyOf(t.cadence,state.cur))); return `- ${t.title}: 目標 ${t.target}${t.unit||""}、達成 ${pct(r)}、期間の経過 ${pct(periodFrac(t.cadence,state.cur))}`; }).join("\n");
+  const I = state.ideal;
+  const prompt = `あなたは、本人が理想の自分に近づけるよう支える、率直で温かい習慣コーチです。以下の1週間の記録と本人の振り返りを読んで、来週の行動を具体的に直してください。
+
+【理想の自分（${I.horizon||""}）】
+${I.vision || "（未設定）"}
+${I.pillars.map(p=>`- ${p.name}: ${p.ideal}`).join("\n")}
+
+【毎日のタスク全体の平均達成率】今週 ${pct(thisW)}／先週 ${pct(lastW)}
+
+【タスクごとの達成率】
+${rows || "（なし）"}
+
+【数値目標】
+${goals || "（なし）"}
+
+【本人の振り返り】
+良かったこと: ${D.good || "（未記入）"}
+できなかったこと・理由: ${D.bad || "（未記入）"}
+来週変えること: ${D.change || "（未記入）"}
+来週いちばん大事なこと: ${D.focus || "（未記入）"}
+
+次の形で、日本語のプレーンテキスト（記号は「・」と数字だけ、マークダウン禁止）で、全体400字程度で答えてください。
+1. 良かった点（具体的なタスク名と数字を挙げて1〜2文）
+2. いちばんの課題と、その原因の仮説（1つに絞る）
+3. 来週の具体的な変更（最大3つ。それぞれ「どのタスクを」「いつ・どこで・どれだけに」変えるかまで書く。達成率50%未満のタスクは、量を減らすか最低ラインを作る提案を優先する）
+4. 理想の自分につながるひとこと（1文）`;
+  const ctl = new AbortController();
+  state.coach = {key:D.key, busy:true, ctl, text:"", msg:"考えています。30秒〜1分ほどかかります。"}; renderReview();
+  try {
+    const r = await sample(prompt, {signal:ctl.signal, cache:false, onText:({text}) => { state.coach.text = text; state.coach.msg = ""; renderReview(); }});
+    state.coach = {key:D.key, text:r.text};
+    await saveReview({coach:r.text});
+  } catch(e){
+    const m = {cancelled:"止めました。", not_granted:"Claudeの利用が許可されませんでした。", rate_limited:"混み合っています。少し待ってからもう一度押してください。"}[e?.code] || "うまく答えられませんでした。もう一度押してください。";
+    state.coach = {key:D.key, text:e?.text||"", msg:m}; renderReview();
+  }
+}
+const reviewEl = document.getElementById("review");
+reviewEl.addEventListener("input", e => { const f = e.target.dataset.rv; if (f && state.rvDraft) state.rvDraft[f] = e.target.value; });
+reviewEl.addEventListener("click", e => {
+  const b = e.target.closest("[data-rvact]"); if (!b) return;
+  if (b.dataset.rvact==="save") saveReview({});
+  else if (b.dataset.rvact==="coach") askCoach();
+  else if (b.dataset.rvact==="stop") state.coach?.ctl?.abort();
+});
+
+/* rename */
+function finishEdit(id, save){
+  const t = state.tasks[id];
+  if (save && t){
+    const val = k => document.getElementById(k+"-"+id)?.value.trim();
+    const patch = {}, title = val("ren"), when = val("renw") ?? "", min = val("renm");
+    if (title && title!==t.title) patch.title = title;
+    if (when !== (t.when||"")) patch.when = when;
+    if (min !== undefined && min !== (t.min||"")) patch.min = min;
+    if (Object.keys(patch).length){ Object.assign(t, patch); state.db?.collection("tasks").doc(id).update(patch).catch(e=>setStatus("保存できませんでした: "+(e?.message||""))); }
+  }
+  state.editing = null; render();
 }
 const listEl = document.getElementById("list");
 listEl.addEventListener("keydown", e => {
   const r = e.target.closest("[data-ren]");
-  if (r){ if (e.key==="Enter" && !e.isComposing){ e.preventDefault(); finishRename(r,true); } else if (e.key==="Escape") finishRename(r,false); return; }
+  const te = e.target.closest("[data-tedit]");
+  if (te){ if (e.key==="Enter" && !e.isComposing){ e.preventDefault(); finishEdit(te.dataset.tedit,true); } else if (e.key==="Escape") finishEdit(te.dataset.tedit,false); return; }
   const g = e.target.closest("[data-grip]");
   if (g && (e.key==="ArrowUp"||e.key==="ArrowDown")){
     e.preventDefault();
@@ -777,7 +962,6 @@ listEl.addEventListener("keydown", e => {
     listEl.querySelector(`[data-grip="${CSS.escape(g.dataset.grip)}"]`)?.focus();
   }
 });
-listEl.addEventListener("focusout", e => { const r=e.target.closest("[data-ren]"); if (r && state.editing===r.dataset.ren) finishRename(r,true); });
 
 /* reorder by drag (mouse and touch) */
 let drag = null;
@@ -834,7 +1018,8 @@ render();
     if (snap.exists){ const d = snap.data(); state.ideal = {vision:d.vision||"", horizon:d.horizon||"1年後", answers:d.answers||{}, pillars:Array.isArray(d.pillars)?d.pillars:[]}; }
     render();
   }, () => {});
-  claude.use("sample").then(sm => { state.sample = sm; if (state.editing_ideal) renderIdeal(); }).catch(()=>{});
+  claude.use("sample").then(sm => { state.sample = sm; if (state.editing_ideal) renderIdeal(); renderReview(); }).catch(()=>{});
+  db.collection("reviews").onSnapshot(snap => { state.reviews = {}; snap.docs.forEach(d => state.reviews[d.id] = d.data()); renderReview(); renderList(); }, () => {});
   let got = 0;
   const done = () => { if (++got===2){ state.loaded=true; clearTimeout(timer); setStatus(""); } render(); };
   let f1=false, f2=false;
