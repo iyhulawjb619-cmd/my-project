@@ -91,6 +91,30 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .coach{white-space:pre-wrap;font-size:14px;line-height:1.75;border-left:3px solid var(--accent);padding:4px 0 4px 12px;overflow-wrap:anywhere}
 .flag{font-size:11px;font-weight:700;color:var(--lose);white-space:nowrap}
 .good{font-size:11px;font-weight:700;color:var(--win);white-space:nowrap}
+.lv{font-family:var(--f-num);font-size:10px;font-weight:700;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 4px;margin-right:6px;vertical-align:1px}
+.lvup{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;border-radius:8px;padding:6px 8px;background:var(--win-soft)}
+.task{flex-wrap:wrap} .task>.lvup{flex-basis:100%}
+.lvup.down{background:var(--lose-soft)}
+.lvup .btn{padding:3px 10px;font-size:12px}
+.opts{display:flex;gap:6px;flex-wrap:wrap}
+.opts .btn{font-weight:500;text-align:left}
+.note{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.note label{font-size:12px;font-weight:700;white-space:nowrap}
+.note input{flex:1;min-width:0;font:inherit;border:0;background:none;color:var(--fg);padding:4px 0}
+.note input:focus-visible{outline:none}
+.note:focus-within{border-color:var(--accent)}
+.metric{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.metric:last-child{border-bottom:0}
+.metric .nm{font-weight:700;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.metric .vals{font-size:12px;color:var(--muted)}
+.metric .spark{width:110px;height:36px}
+.metric .rec{grid-column:1/-1;display:flex;gap:6px;align-items:center}
+.metric .rec input{width:7em;font-family:var(--f-num);border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--bg);color:var(--fg)}
+.mform{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.mform input,.mform select{font:inherit;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg);color:var(--fg);min-width:0}
+.mform #m-name{flex:1 1 180px}
+.mform #m-unit{width:5em}
+.big2{font-family:var(--f-num);font-weight:700;font-size:28px;line-height:1.1}
 .ren{font:inherit;width:100%;border:1px solid var(--accent);border-radius:6px;padding:2px 6px;background:var(--bg);color:var(--fg)}
 .plus{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700}
 .bar{position:relative}
@@ -197,6 +221,8 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
 
   <section class="verdict" id="verdict" aria-live="polite"></section>
 
+  <div class="note"><label for="note">今日の改善</label><input id="note" placeholder="昨日より良くできたこと・次に変えることを1行" autocomplete="off"></div>
+
   <section>
     <div class="tabs" role="tablist" id="tabs"></div>
     <div id="pre-list" style="display:grid;gap:8px;margin-top:10px"></div>
@@ -215,6 +241,8 @@ td.n{font-family:var(--f-num);text-align:right;white-space:nowrap}
   </section>
 
   <section class="card" id="review"></section>
+
+  <section class="card" id="growth"></section>
 
   <section class="card">
     <div class="cardhead">
@@ -279,7 +307,7 @@ const fmtDate = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate(
 const pct = r => r==null ? "—" : Math.round(r*100) + "%";
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-const state = { ideal:{vision:"", horizon:"1年後", answers:{}, pillars:[]}, editing_ideal:false, reviews:{}, rvDraft:null, coach:null, rvMsg:"", draft:null, ai:null, sample:null, tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
+const state = { ideal:{vision:"", horizon:"1年後", answers:{}, pillars:[]}, editing_ideal:false, reviews:{}, metrics:{}, levelUp:null, levelDown:null, lvOpts:null, mArmed:null, rvDraft:null, coach:null, rvMsg:"", draft:null, ai:null, sample:null, tasks:{}, checks:{}, cad:"daily", range:"daily", cur:new Date(), loaded:false, db:null, armed:null };
 try { const t = localStorage.getItem("sft-tab"); if (t && CAD[t]) state.cad = t; const r = localStorage.getItem("sft-range"); if (r) state.range = r; } catch(e){}
 const today0 = () => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); };
 state.cur = today0();
@@ -322,7 +350,7 @@ function render(){
   document.getElementById("curdate").textContent = fmtDate(cur);
   document.getElementById("next").disabled = isToday;
   document.getElementById("sample-banner").hidden = !Object.keys(state.tasks).some(id => id.startsWith("sample-"));
-  if (!state.editing_ideal) renderIdeal(); renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable(); renderReview();
+  if (!state.editing_ideal) renderIdeal(); renderVerdict(); renderTabs(); renderList(); renderChart(); renderHeat(); renderTable(); renderReview(); renderGrowth(); renderNote();
 }
 
 function renderVerdict(){
@@ -404,14 +432,20 @@ function renderList(){
     const editing = state.editing===t.id;
     const title = editing
       ? `<div class="tedit" data-tedit="${id}">
+          ${state.levelUp===t.id?`<div class="lvup"><span><b>Lv${levelOf(t)} → Lv${levelOf(t)+1}</b>：次の段階の内容に書き換えて保存してください。量を少し増やす、難しくする、質の条件を足す、のどれかです。</span></div>
+          ${state.sample?`<div class="opts">${(state.lvOpts?.id===t.id && state.lvOpts.list ? state.lvOpts.list.map((o,i)=>`<button type="button" class="btn" data-opt="${i}" data-optfor="${id}">${esc(o)}</button>`).join("") : `<button type="button" class="btn dark" data-lvask="${id}" ${state.lvOpts?.busy?"disabled":""}>${state.lvOpts?.busy?"考えています…":"Claudeに次の段階を提案してもらう"}</button>`)}</div>`:""}`:""}
+          ${state.levelDown===t.id?`<div class="lvup down"><span>続かない時は根性ではなく基準の問題です。小さくして確実にできる形に書き換えてください。</span></div>`:""}
           <label>タスク名<input class="ren" id="ren-${id}" data-ren="${id}" value="${esc(t.title)}"></label>
           <label>いつ・どこでやる？（例: 朝食のあと、机で）<input class="ren" id="renw-${id}" value="${esc(t.when||"")}"></label>
+          ${t.target>0?`<label>基準（1回あたり ${esc(t.unit||"")}）<input class="ren" id="rent-${id}" type="number" step="any" min="0" value="${t.target}"></label>`:""}
           ${t.target>0?"":`<label>最低ライン（できない日はこれだけ。例: 単語を5個）<input class="ren" id="renm-${id}" value="${esc(t.min||"")}"></label>`}
           <div class="row"><button type="button" class="btn primary" data-esave="${id}">保存</button><button type="button" class="btn" data-ecancel="${id}">やめる</button></div>
         </div>`
       : `<span class="ttl" data-edit="${id}" title="タップで編集">${esc(t.title)}</span>`;
     const miss = c==="daily" && missedYesterday(t) && !(scoreOf(t,ch)>0);
     const stk = c==="daily" ? taskStreak(t) : 0;
+    const lvChip = c==="daily" && !t.onlyKey ? `<span class="lv">Lv${levelOf(t)}</span>` : "";
+    const lvRow = c==="daily" && !editing ? levelRow(t) : "";
     const extra = (t.when?` ・ ${esc(t.when)}`:"") + (stk>=2?` ・ <span class="streak">${stk}日連続</span>`:"");
     const pi = state.ideal.pillars.findIndex(p=>p.id===t.pillar);
     const pc = pi>=0 ? ` style="--pc:var(--p${pi%5+1})"` : "";
@@ -421,15 +455,15 @@ function renderList(){
       const v = Number(ch.values?.[t.id])||0, r = Math.min(1, v/t.target);
       const pace = fracName ? ` ・ ${fracName}の経過 ${pct(frac)}／達成 ${pct(r)} ${r>=frac-1e-9?'<b class="ok">ペース以上</b>':'<b class="ng">ペース遅れ</b>'}` : "";
       return `<div class="task ${done?"done":""}" data-id="${id}"${pc}>${grip}
-        <div class="t">${title}<small>${tag}${pilSel}${extra} ・ 目標 ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i><s style="left:${frac*100}%"></s></div></div>
+        <div class="t">${editing?"":lvChip}${title}<small>${tag}${pilSel}${extra} ・ ${c==="daily"?"基準":"目標"} ${t.target}${esc(t.unit||"")}${pace}</small><div class="bar"><i style="width:${r*100}%"></i>${fracName?`<s style="left:${frac*100}%"></s>`:""}</div></div>
         <div class="prog"><input id="v-${id}" data-v="${id}" type="number" step="any" min="0" value="${v}" aria-label="${esc(t.title)}の実績"><span class="muted">${esc(t.unit||"")}</span><button class="plus" data-plus="${id}" aria-label="${esc(t.title)}に1を足す">＋1</button></div>
-        ${del}</div>`;
+        ${del}${lvRow}</div>`;
     }
     const half = ch.done?.[t.id]==="min";
     const minBtn = t.min && !done && !editing ? `<button class="minb" data-min="${id}" aria-pressed="${half}">${half?"最低ラインできた":"最低ラインだけやる"}: ${esc(t.min)}</button>` : "";
     return `<div class="task ${done?"done":""} ${miss?"miss":""}" data-id="${id}"${pc}>${grip}
       <button class="chk ${half?"half":""}" data-tog="${id}" aria-pressed="${done}" aria-label="${esc(t.title)}を完了にする">${done?CHECK_SVG:half?"半":""}</button>
-      <div class="t">${editing?"":`${title}${miss?'<span class="misschip">昨日できていない</span>':""}`}${editing?title:""}<small>${tag}${pilSel}${extra}</small>${minBtn}</div>
+      <div class="t">${editing?"":`${lvChip}${title}${miss?'<span class="misschip">昨日できていない</span>':""}`}${editing?title:""}<small>${tag}${pilSel}${extra}</small>${minBtn}${lvRow}</div>
       ${del}</div>`;
   }).join("");
   if (state.editing && !document.activeElement?.closest?.("[data-tedit]")){ const i=document.getElementById("ren-"+state.editing); if (i){ i.focus(); i.select(); } }
@@ -438,9 +472,7 @@ function renderList(){
   fp.hidden = !state.ideal.pillars.length;
   fp.innerHTML = `<option value="">柱なし</option>` + state.ideal.pillars.map(p=>`<option value="${esc(p.id)}">${esc(p.name||"（無名）")}</option>`).join("");
   if ([...fp.options].some(o=>o.value===keep)) fp.value = keep;
-  const showT = c!=="daily";
-  document.getElementById("f-target").hidden = !showT;
-  document.getElementById("f-unit").hidden = !showT;
+  document.getElementById("f-target").placeholder = c==="daily" ? "基準（任意）" : "目標値";
   document.getElementById("f-title").placeholder = c==="yearly" ? "年間目標を追加（例: 売上 / 読書冊数）" : `${CAD[c].unit}次タスクを追加`;
 }
 
@@ -536,9 +568,12 @@ function renderTable(){
   add("今日 vs 過去30日平均", dayRate(cur), avgDays(shift(cur,"daily",-30), shift(cur,"daily",-1)), "30日平均");
   add("週次タスク 今週 vs 先週", rateFor("weekly",keyOf("weekly",cur))?.rate ?? null, rateFor("weekly",keyOf("weekly",shift(cur,"weekly",-1)))?.rate ?? null, "先週");
   add("月次タスク 今月 vs 先月", rateFor("monthly",keyOf("monthly",cur))?.rate ?? null, rateFor("monthly",keyOf("monthly",shift(cur,"monthly",-1)))?.rate ?? null, "先月");
+  rows.push({name:"合計レベル 今 vs 30日前", a:totalLevelAt(cur), b:totalLevelAt(shift(cur,"daily",-30)), fmt:v=>`Lv${v}`});
+  rows.at(-1).j = rows.at(-1).a>rows.at(-1).b ? "win" : rows.at(-1).a<rows.at(-1).b ? "lose" : (rows.at(-1).a ? "tie" : null);
+  Object.values(state.metrics).forEach(m => { const a = metricAt(m,cur), b = metricAt(m, shift(cur,"daily",-30)); if (a==null) return; rows.push({name:`${m.name} 今 vs 1ヶ月前`, a, b, fmt:v=>v==null?"—":`${v}${m.unit||""}`, j: (m.entries||[]).length>1 && b!=null ? better(m,a,b) : null}); });
   add("年間目標 今年 vs 去年", rateFor("yearly",keyOf("yearly",cur))?.rate ?? null, rateFor("yearly",keyOf("yearly",shift(cur,"yearly",-1)))?.rate ?? null, "去年");
   document.getElementById("vs-table").innerHTML = `<tr><th>勝負</th><th style="text-align:right">いま</th><th style="text-align:right">過去</th><th>結果</th></tr>` +
-    rows.map(r => `<tr><td>${r.name}</td><td class="n">${pct(r.a)}</td><td class="n muted">${pct(r.b)}</td><td>${r.j?`<span class="res ${r.j}">${r.j!=="win" && dayKey(cur)===dayKey(today0()) && !r.name.includes("年") ? "途中" : RES[r.j]}</span>`:'<span class="muted">—</span>'}</td></tr>`).join("");
+    rows.map(r => `<tr><td>${r.name}</td><td class="n">${(r.fmt||pct)(r.a)}</td><td class="n muted">${(r.fmt||pct)(r.b)}</td><td>${r.j?`<span class="res ${r.j}">${r.j!=="win" && !r.fmt && dayKey(cur)===dayKey(today0()) && !r.name.includes("年") ? "途中" : RES[r.j]}</span>`:'<span class="muted">—</span>'}</td></tr>`).join("");
 }
 
 /* ---------- writes ---------- */
@@ -546,7 +581,7 @@ function saveCheck(c, key, ch){
   const id = `${c}_${key}`;
   state.checks[id] = ch; render();
   if (!state.db) return;
-  state.db.collection("checks").doc(id).set({cadence:c, key, done:ch.done||{}, values:ch.values||{}, updatedAt:new Date().toISOString()})
+  state.db.collection("checks").doc(id).set({cadence:c, key, done:ch.done||{}, values:ch.values||{}, ...(ch.note?{note:ch.note}:{}), updatedAt:new Date().toISOString()})
     .catch(e => setStatus("保存できませんでした: " + (e?.message||e?.code||"")));
 }
 function toggle(id){
@@ -568,13 +603,13 @@ function addTask(e){
   e.preventDefault();
   const title = document.getElementById("f-title").value.trim(); if (!title) return;
   const c = state.cad, key = keyOf(c,state.cur), once = document.getElementById("f-kind").value==="once";
-  const target = c!=="daily" ? Number(document.getElementById("f-target").value)||0 : 0;
+  const target = Number(document.getElementById("f-target").value)||0;
   const id = "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
   const t = {id, title, cadence:c, created:new Date().toISOString(), startKey:key,
     pillar: document.getElementById("f-pillar").value || null,
     order: Math.max(0, ...Object.values(state.tasks).filter(x=>x.cadence===c).map(x=>x.order??0)) + 1};
   if (once) t.onlyKey = key;
-  if (target>0){ t.target = target; t.unit = document.getElementById("f-unit").value.trim(); }
+  if (target>0){ t.target = target; t.startTarget = target; t.unit = document.getElementById("f-unit").value.trim(); }
   state.tasks[id] = t;
   document.getElementById("f-title").value = ""; document.getElementById("f-target").value = ""; document.getElementById("f-unit").value = "";
   render();
@@ -614,6 +649,10 @@ document.getElementById("range").addEventListener("click", e => { const b=e.targ
 document.getElementById("list").addEventListener("click", e => {
   const tg = e.target.closest("[data-tog]"); if (tg){ toggle(tg.dataset.tog); return; }
   const pl = e.target.closest("[data-plus]"); if (pl){ const i=document.getElementById("v-"+pl.dataset.plus); setValue(pl.dataset.plus, (Number(i?.value)||0)+1); return; }
+  const lu = e.target.closest("[data-lvup]"); if (lu){ startLevel(lu.dataset.lvup, "up"); return; }
+  const ld = e.target.closest("[data-lvdown]"); if (ld){ startLevel(ld.dataset.lvdown, "down"); return; }
+  const la = e.target.closest("[data-lvask]"); if (la){ askLevelIdeas(la.dataset.lvask); return; }
+  const op = e.target.closest("[data-opt]"); if (op){ const inp = document.getElementById("ren-"+op.dataset.optfor); if (inp && state.lvOpts?.list){ inp.value = state.lvOpts.list[Number(op.dataset.opt)]; inp.focus(); } return; }
   const mn = e.target.closest("[data-min]"); if (mn){ toggleMin(mn.dataset.min); return; }
   const sv = e.target.closest("[data-esave]"); if (sv){ finishEdit(sv.dataset.esave, true); return; }
   const cn = e.target.closest("[data-ecancel]"); if (cn){ finishEdit(cn.dataset.ecancel, false); return; }
@@ -890,6 +929,9 @@ async function askCoach(){
   const goals = Object.values(state.tasks).filter(t=>t.target>0 && activeIn(t,t.cadence,keyOf(t.cadence,state.cur))).map(t => {
     const r = scoreOf(t, check(t.cadence, keyOf(t.cadence,state.cur))); return `- ${t.title}: 目標 ${t.target}${t.unit||""}、達成 ${pct(r)}、期間の経過 ${pct(periodFrac(t.cadence,state.cur))}`; }).join("\n");
   const I = state.ideal;
+  const lvTxt = Object.values(state.tasks).filter(t=>t.cadence==="daily" && !t.onlyKey && activeIn(t,"daily",dayKey(state.cur))).map(t => { const st = levelState(t); return `- ${t.title}: Lv${levelOf(t)}${t.target>0?`（基準 ${t.target}${t.unit||""}、開始時 ${t.startTarget??t.target}）`:""}、最後の変更から${st?.since??"?"}日`; }).join("\n");
+  const mTxt = Object.values(state.metrics).map(m => `- ${m.name}（${m.better==="down"?"低いほど良い":"高いほど良い"}）: ${(m.entries||[]).slice(-6).map(e=>`${e.key.slice(5)} ${e.value}${m.unit||""}`).join(" → ") || "記録なし"}`).join("\n");
+  const notes = []; for (let d=new Date(ws); d<=we && d<=state.cur; d.setDate(d.getDate()+1)){ const n = check("daily", dayKey(d)).note; if (n) notes.push(`- ${d.getMonth()+1}/${d.getDate()}: ${n}`); }
   const prompt = `あなたは、本人が理想の自分に近づけるよう支える、率直で温かい習慣コーチです。以下の1週間の記録と本人の振り返りを読んで、来週の行動を具体的に直してください。
 
 【理想の自分（${I.horizon||""}）】
@@ -904,17 +946,27 @@ ${rows || "（なし）"}
 【数値目標】
 ${goals || "（なし）"}
 
+【タスクのレベル（できるようになったら基準を上げる仕組み）】
+${lvTxt || "（なし）"}
+
+【成長指標（実力を測る数字）】
+${mTxt || "（未設定）"}
+
+【毎日の改善メモ】
+${notes.join("\n") || "（なし）"}
+
 【本人の振り返り】
 良かったこと: ${D.good || "（未記入）"}
 できなかったこと・理由: ${D.bad || "（未記入）"}
 来週変えること: ${D.change || "（未記入）"}
 来週いちばん大事なこと: ${D.focus || "（未記入）"}
 
-次の形で、日本語のプレーンテキスト（記号は「・」と数字だけ、マークダウン禁止）で、全体400字程度で答えてください。
+次の形で、日本語のプレーンテキスト（記号は「・」と数字だけ、マークダウン禁止）で、全体500字程度で答えてください。
 1. 良かった点（具体的なタスク名と数字を挙げて1〜2文）
 2. いちばんの課題と、その原因の仮説（1つに絞る）
-3. 来週の具体的な変更（最大3つ。それぞれ「どのタスクを」「いつ・どこで・どれだけに」変えるかまで書く。達成率50%未満のタスクは、量を減らすか最低ラインを作る提案を優先する）
-4. 理想の自分につながるひとこと（1文）`;
+3. 来週の具体的な変更（最大3つ。それぞれ「どのタスクを」「いつ・どこで・どれだけに」変えるかまで書く。達成率50%未満のタスクは量を減らすか最低ラインを作る。85%以上で10日以上同じ基準のタスクは、次の段階（量を1〜2割増やす、難しくする、質の条件を足す）を具体的に提案する。毎日同じことを繰り返すだけで成長が止まっていないかに注意する）
+4. 成長指標について（記録が増えているか、行動が数字につながっているか。指標がなければ、柱ごとに週1回測れる指標を1つ提案）
+5. 理想の自分につながるひとこと（1文）`;
   const ctl = new AbortController();
   state.coach = {key:D.key, busy:true, ctl, text:"", msg:"考えています。30秒〜1分ほどかかります。"}; renderReview();
   try {
@@ -935,6 +987,140 @@ reviewEl.addEventListener("click", e => {
   else if (b.dataset.rvact==="stop") state.coach?.ctl?.abort();
 });
 
+
+/* ---------- growth: levels, metrics, daily improvement ---------- */
+const keyToDate = k => { const [y,m,d] = k.split("-").map(Number); return new Date(y,m-1,d); };
+const daysBetween = (a,b) => Math.round((b-a)/864e5);
+function levelOf(t, key){ return 1 + (t.levelLog||[]).filter(l => l.kind==="up" && (!key || l.key<=key)).length; }
+function levelState(t){
+  if (t.cadence!=="daily" || t.onlyKey) return null;
+  const last = (t.levelLog||[]).at(-1)?.key || t.startKey;
+  const since = daysBetween(keyToDate(last), state.cur);
+  const span = Math.min(14, since);
+  if (span < 7) return {since};
+  let s=0,n=0; for (let i=1;i<=span;i++){ const k=dayKey(shift(state.cur,"daily",-i)); if (!activeIn(t,"daily",k)) continue; s+=scoreOf(t,check("daily",k)); n++; }
+  const rate = n ? s/n : null;
+  return {since, span, rate, up: since>=10 && rate!=null && rate>=0.85, down: rate!=null && rate<0.5};
+}
+const nextTarget = v => Number.isInteger(v) ? Math.max(v+1, Math.round(v*1.1)) : Math.round(v*11)/10;
+function levelRow(t){
+  const st = levelState(t); if (!st || st.rate==null) return "";
+  const id = esc(t.id);
+  if (st.up) return `<div class="lvup"><span>直近${st.span}日 <b>${pct(st.rate)}</b>。もう楽にできています。${t.target>0?`基準 ${t.target}→${nextTarget(t.target)}${esc(t.unit||"")}`:""}</span><button class="btn primary" data-lvup="${id}">レベルアップ</button></div>`;
+  if (st.down) return `<div class="lvup down"><span>直近${st.span}日 <b>${pct(st.rate)}</b>。いまの基準は高すぎるかもしれません。</span><button class="btn" data-lvdown="${id}">基準を下げて立て直す</button></div>`;
+  return "";
+}
+function startLevel(id, kind){
+  const t = state.tasks[id]; if (!t) return;
+  if (t.target>0){
+    const v = kind==="up" ? nextTarget(t.target) : Math.max(1, Math.round(t.target*8)/10);
+    const log = [...(t.levelLog||[]), {key:dayKey(state.cur), kind, title:t.title, target:v}];
+    const patch = {target:v, levelLog:log}; if (t.startTarget==null) patch.startTarget = t.target;
+    Object.assign(t, patch); render();
+    state.db?.collection("tasks").doc(id).update(patch).catch(e=>setStatus("保存できませんでした: "+(e?.message||"")));
+    return;
+  }
+  state.editing = id; state.levelUp = kind==="up" ? id : null; state.levelDown = kind==="down" ? id : null; state.lvOpts = null; renderList();
+}
+async function askLevelIdeas(id){
+  const t = state.tasks[id], sample = state.sample; if (!t || !sample) return;
+  const pillar = state.ideal.pillars.find(p=>p.id===t.pillar);
+  state.lvOpts = {id, busy:true}; renderList();
+  try {
+    const r = await sample.json(`ある人が毎日「${t.title}」を2週間ほぼ毎日できるようになりました。${pillar?`このタスクは「${pillar.name}: ${pillar.ideal}」という理想につながっています。`:""}${state.ideal.vision?`本人の理想: ${state.ideal.vision}`:""}
+成長し続けるために、次の段階のタスクを3案出してください。いまより1段だけ上（1〜2割増し、または質の条件を1つ足す）にし、毎日続けられる大きさに収めること。それぞれ30文字以内の、そのままタスク名になる日本語にする。
+JSONだけを返す: {"options":["...","...","..."]}`, {modelTier:"quick"});
+    const list = (r?.options||[]).map(String).filter(Boolean).slice(0,3);
+    state.lvOpts = {id, list: list.length ? list : null};
+  } catch(e){ state.lvOpts = {id}; }
+  renderList();
+}
+function totalLevelAt(d){
+  const k = dayKey(d);
+  return Object.values(state.tasks).filter(t => activeIn(t,"daily",k) && !t.onlyKey).reduce((a,t)=>a+levelOf(t,k),0);
+}
+function metricAt(m, d){ const k = dayKey(d); let v = null; for (const e of (m.entries||[])) if (e.key<=k) v = e.value; return v; }
+function sparkline(m){
+  const es = (m.entries||[]).slice(-20); if (es.length<2) return "";
+  const vs = es.map(e=>e.value), lo = Math.min(...vs), hi = Math.max(...vs), r = hi-lo || 1;
+  const pts = es.map((e,i)=>[4 + i*(102/(es.length-1)), 32 - ((e.value-lo)/r)*28]);
+  const last = pts.at(-1);
+  return `<svg class="spark" viewBox="0 0 110 36" aria-hidden="true"><polyline points="${pts.map(p=>p.map(n=>n.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0]}" cy="${last[1]}" r="3" fill="var(--accent)"/></svg>`;
+}
+function better(m, a, b){ if (a==null||b==null) return null; if (a===b) return "tie"; return (m.better==="down" ? a<b : a>b) ? "win" : "lose"; }
+function renderGrowth(){
+  const el = document.getElementById("growth");
+  if (el.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+  const cur = state.cur, now = totalLevelAt(cur), ago = totalLevelAt(shift(cur,"daily",-30));
+  const pts = []; for (let i=12;i>=0;i--){ const d = shift(cur,"daily",-7*i); pts.push({d, v: totalLevelAt(d)}); }
+  const W=720,H=150,L=34,R=10,T=10,B=22, mx = Math.max(4, ...pts.map(p=>p.v)), iw=W-L-R, ih=H-T-B;
+  const x = i => L + i*(iw/12), y = v => T + ih*(1 - v/mx);
+  let g = ""; [...new Set([0, Math.round(mx/2), mx])].forEach(v => g += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`);
+  const line = pts.map((p,i)=>`${x(i)},${y(p.v)}`).join(" ");
+  g += `<polygon points="${x(0)},${y(0)} ${line} ${x(12)},${y(0)}" fill="var(--accent-soft)"/><polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{ if (i%3===0 || i===12) g += `<text x="${x(i)}" y="${H-6}" text-anchor="middle">${p.d.getMonth()+1}/${p.d.getDate()}</text>`; });
+  g += `<circle cx="${x(12)}" cy="${y(pts[12].v)}" r="4" fill="var(--accent)"/>`;
+  const daily = Object.values(state.tasks).filter(t => activeIn(t,"daily",dayKey(cur)) && !t.onlyKey).sort((a,b)=>((a.order??0)-(b.order??0)));
+  const lvList = daily.map(t => `<tr><td><span class="lv">Lv${levelOf(t)}</span>${esc(t.title)}</td><td class="n">${t.target>0?`${(t.startTarget??t.target)!==t.target?`${t.startTarget}→`:""}${t.target}${esc(t.unit||"")}`:"—"}</td><td class="n muted">${(t.levelLog||[]).length ? t.levelLog.at(-1).key.slice(5).replace("-","/") : "—"}</td></tr>`).join("");
+  const ms = Object.values(state.metrics).sort((a,b)=>(a.created||"").localeCompare(b.created||""));
+  const mRows = ms.map(m => {
+    const es = m.entries||[], last = es.at(-1)?.value ?? null, first = es[0]?.value ?? null;
+    const month = metricAt(m, shift(cur,"daily",-30));
+    const best = es.length ? (m.better==="down" ? Math.min(...es.map(e=>e.value)) : Math.max(...es.map(e=>e.value))) : null;
+    const j = es.length>1 ? better(m, last, month ?? first) : null;
+    const pil = state.ideal.pillars.find(p=>p.id===m.pillar)?.name;
+    return `<div class="metric">
+      <div style="min-width:0"><div class="nm">${esc(m.name)}${pil?` <span class="muted" style="font-weight:400;font-size:11px">・${esc(pil)}</span>`:""}</div>
+      <div class="vals"><b class="num" style="color:var(--fg);font-size:16px">${last??"—"}</b> ${esc(m.unit||"")} ・ 最初 ${first??"—"} ・ 自己ベスト ${best??"—"} ${j?`・ ${month!=null?"1ヶ月前":"最初"}と比べて <span class="res ${j}">${RES[j]}</span>`:""}</div></div>
+      ${sparkline(m)}
+      <div class="rec"><input id="mv-${esc(m.id)}" type="number" step="any" aria-label="${esc(m.name)}の今日の値" placeholder="今日の値"><button class="btn" data-mrec="${esc(m.id)}">記録</button><span class="muted" style="font-size:11px">${es.length?`最終 ${es.at(-1).key.slice(5).replace("-","/")}`:""}</span><button class="del ${state.mArmed===m.id?"arm":""}" data-mdel="${esc(m.id)}" style="margin-left:auto" aria-label="${esc(m.name)}を削除">${state.mArmed===m.id?"削除する":"×"}</button></div>
+    </div>`;
+  }).join("");
+  el.innerHTML = `<div class="cardhead"><h2>成長の記録</h2><span class="muted" style="font-size:12px">こなした量ではなく、上がった基準と力を見ます</span></div>
+    <div class="row" style="align-items:baseline;gap:14px"><span class="big2">Lv${now}</span><span class="muted">毎日のタスクの合計レベル ・ 30日前 <b class="num">Lv${ago}</b></span>${now>ago?`<span class="res win">+${now-ago}</span>`:""}</div>
+    <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="合計レベルの推移">${g}</svg></div>
+    <p class="muted" style="margin:0;font-size:12px">2週間で85%以上できたタスクには「レベルアップ」が出ます。続かないタスクには「基準を下げて立て直す」が出ます。数値の基準があるタスクは1割ずつ上がります。</p>
+    ${lvList?`<div class="tablewrap"><table><tr><th>タスク</th><th style="text-align:right">基準</th><th style="text-align:right">最後の変更</th></tr>${lvList}</table></div>`:""}
+    <div><div class="eyebrow" style="margin:6px 0 2px">成長指標（実力そのものを測る数字）</div>
+      ${mRows || `<p class="muted" style="font-size:13px;margin:6px 0">まだありません。週に1回くらい測れる数字を決めると、行動が力に変わっているかが分かります。例: 英語の模試スコア、腕立ての最大回数、トレードのルール遵守率（%）、体重。</p>`}
+      <form class="mform" id="mform">
+        <input id="m-name" placeholder="指標を追加（例: TOEIC模試）" required>
+        <input id="m-unit" placeholder="単位">
+        <select id="m-better" aria-label="良い方向"><option value="up">高いほど良い</option><option value="down">低いほど良い</option></select>
+        ${state.ideal.pillars.length?`<select id="m-pillar" aria-label="柱"><option value="">柱なし</option>${state.ideal.pillars.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("")}</select>`:""}
+        <button class="btn dark" type="submit">追加</button>
+      </form>
+    </div>`;
+}
+const growthEl = document.getElementById("growth");
+growthEl.addEventListener("submit", e => {
+  e.preventDefault();
+  const name = document.getElementById("m-name").value.trim(); if (!name) return;
+  const id = newId("m"), m = {id, name, unit:document.getElementById("m-unit").value.trim(), better:document.getElementById("m-better").value, pillar:document.getElementById("m-pillar")?.value||null, entries:[], created:new Date().toISOString()};
+  state.metrics[id] = m; document.activeElement?.blur(); renderGrowth();
+  state.db?.collection("metrics").doc(id).set(m).catch(err=>setStatus("保存できませんでした: "+(err?.message||"")));
+});
+growthEl.addEventListener("click", e => {
+  const r = e.target.closest("[data-mrec]");
+  if (r){
+    const m = state.metrics[r.dataset.mrec], inp = document.getElementById("mv-"+r.dataset.mrec), v = Number(inp?.value);
+    if (!m || inp.value==="" || !isFinite(v)) return;
+    const k = dayKey(state.cur), es = (m.entries||[]).filter(x=>x.key!==k); es.push({key:k, value:v}); es.sort((a,b)=>a.key.localeCompare(b.key));
+    m.entries = es; document.activeElement?.blur(); render();
+    state.db?.collection("metrics").doc(m.id).update({entries:es}).catch(err=>setStatus("保存できませんでした: "+(err?.message||"")));
+    return;
+  }
+  const d = e.target.closest("[data-mdel]");
+  if (d){ const id = d.dataset.mdel; if (state.mArmed===id){ state.mArmed=null; delete state.metrics[id]; renderGrowth(); state.db?.collection("metrics").doc(id).delete(); } else { state.mArmed=id; renderGrowth(); setTimeout(()=>{ if(state.mArmed===id){state.mArmed=null;renderGrowth();} },4000); } }
+});
+const noteEl = document.getElementById("note");
+function renderNote(){ if (document.activeElement!==noteEl) noteEl.value = check("daily", dayKey(state.cur)).note || ""; }
+noteEl.addEventListener("change", () => {
+  const key = dayKey(state.cur), ch = structuredClone(check("daily",key)); ch.note = noteEl.value.trim();
+  saveCheck("daily", key, ch);
+});
+noteEl.addEventListener("keydown", e => { if (e.key==="Enter" && !e.isComposing) noteEl.blur(); });
+
 /* rename */
 function finishEdit(id, save){
   const t = state.tasks[id];
@@ -944,9 +1130,13 @@ function finishEdit(id, save){
     if (title && title!==t.title) patch.title = title;
     if (when !== (t.when||"")) patch.when = when;
     if (min !== undefined && min !== (t.min||"")) patch.min = min;
+    const tg = val("rent"); if (tg !== undefined && Number(tg)>0 && Number(tg)!==t.target) patch.target = Number(tg);
+    if (state.levelUp===id || state.levelDown===id){
+      patch.levelLog = [...(t.levelLog||[]), {key:dayKey(state.cur), kind:state.levelUp===id?"up":"down", title:patch.title||t.title, ...(t.target>0?{target:patch.target||t.target}:{})}];
+    }
     if (Object.keys(patch).length){ Object.assign(t, patch); state.db?.collection("tasks").doc(id).update(patch).catch(e=>setStatus("保存できませんでした: "+(e?.message||""))); }
   }
-  state.editing = null; render();
+  state.editing = null; state.levelUp = null; state.levelDown = null; state.lvOpts = null; render();
 }
 const listEl = document.getElementById("list");
 listEl.addEventListener("keydown", e => {
@@ -1019,6 +1209,7 @@ render();
     render();
   }, () => {});
   claude.use("sample").then(sm => { state.sample = sm; if (state.editing_ideal) renderIdeal(); renderReview(); }).catch(()=>{});
+  db.collection("metrics").onSnapshot(snap => { state.metrics = {}; snap.docs.forEach(d => state.metrics[d.id] = {...d.data(), id:d.id}); renderGrowth(); }, () => {});
   db.collection("reviews").onSnapshot(snap => { state.reviews = {}; snap.docs.forEach(d => state.reviews[d.id] = d.data()); renderReview(); renderList(); }, () => {});
   let got = 0;
   const done = () => { if (++got===2){ state.loaded=true; clearTimeout(timer); setStatus(""); } render(); };
