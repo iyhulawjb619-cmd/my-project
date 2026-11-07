@@ -316,10 +316,18 @@ def import_news(repo: Repository, payload: Any, fetched_at: Any = None, limit: i
     items = cf.parse_news(norm, limit=limit)
     if not items:
         return {"saved": 0, "status": INSUFFICIENT_DATA, "footer": PLAN_FOOTER}
+    # 追記専用のため、同じ見出し（id、無ければ title+published）は再取込でも増やさない
+    seen = {(r.get("item_id") or None, r.get("title"), r.get("published_jst")) for r in repo.latest_news_items(limit=5000)}
+    seen_ids = {k[0] for k in seen if k[0]}
+    fresh = [i for i in items if not ((i.id and i.id in seen_ids) or (None, i.title, i.published_jst) in seen
+                                      or (i.id, i.title, i.published_jst) in seen)]
+    skipped = len(items) - len(fresh)
+    if not fresh:
+        return {"saved": 0, "skipped": skipped, "fetched_at": fetched, "footer": PLAN_FOOTER}
     batch = uuid.uuid4().hex[:12]
-    n = repo.save_news_items([i.model_dump() | {"tags": i.tags or cf.tag_news(i.title)} for i in items],
+    n = repo.save_news_items([i.model_dump() | {"tags": i.tags or cf.tag_news(i.title)} for i in fresh],
                              fetched_at=fetched, batch_id=batch)
-    return {"saved": n, "batch_id": batch, "fetched_at": fetched, "footer": PLAN_FOOTER}
+    return {"saved": n, "skipped": skipped, "batch_id": batch, "fetched_at": fetched, "footer": PLAN_FOOTER}
 
 
 def import_macro(repo: Repository, symbol: str, payload: Any, source: str | None = None, unit: str | None = None) -> dict:

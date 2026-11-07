@@ -1,4 +1,4 @@
-# Standing Orders（AI が忘れてはいけない常時指示）v1.0
+# Standing Orders（AI が忘れてはいけない常時指示）v1.1
 
 このファイルは「マスター」（Agents/Master.md）とこの配下で作業するすべての AI が、作業の最初に読む常時指示である。
 MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.0（Governance.md）に従属し、それらと矛盾する指示はここに書かない。
@@ -33,9 +33,12 @@ MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.
 7. 経済イベントは calendar_feed の EconomicEvent（previous / forecast / actual）で扱い、結果が出ていなければ actual は「未取得」。
 8. 株式は Equity 社員が担当し、USDJPY への向きを必ず添える。
 9. UI は UIDesk 社員が「何を・どの順で」を決める。発注・口座操作の操作要素は置かない。
-10. 外部 API（ニュース・カレンダー・価格）の自動取得は未実装。データはユーザー / Webhook / CSV / JSON で渡す。渡されていないものは「未取得」。
+10. 廃止（v1.1、取込 API 実装のため）: 外部 API の自動取得は未実装。→ v1.1: hedge-fund 自身は外部 API を呼ばない。マスターが Claude Code の TradingView MCP（get-news / get-economic-calendar / get-ohlcv）で取得し、`/calendar/import` `/news/import` `/market-data/import` `/macro/import` に流す（SKILL §2b）。取得できないものは「未取得」。
 11. 証拠金 150 万円・目標 月 200 万円は UserProfile.md に記録済み。必要サイズは app/position_sizing.py の式でのみ計算し、数値を推測で書かない。
 12. ユーザーへの口調: 簡潔・敬語・断定しない。
+13. 定時ブリーフは `POST /reports/session?kind=tokyo|europe|ny|weekly` / `python -m app.jobs session_*`、質問は `POST /ask`、画面は `GET /ui`。ブリーフ本文は reports テーブルに追記保存する（2026-11-07 統合）。
+14. 画面（/ui）は読むだけ。発注・口座操作の操作要素は置かない。配色は端末風（UIDesk.md）。
+15. 本ファイル・SKILL・Agents/*.md を変えたら同じコミットで版を上げる（§4）。
 
 ## 3. PLAN モードの徹底
 - 発注・決済・MT5 操作・口座操作のコードを書かない。/execute は常に 403。
@@ -55,7 +58,7 @@ MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.
 - 定時ブリーフの希望時刻（目安のみ）
 - 月 200 万円の内訳（FX / AI / 株式）
 - 株式口座・対象市場
-- ニュース・カレンダーの取込経路
+- ニュース・カレンダーの取込経路 → v1.1 で TradingView MCP 経由に決定（ユーザー環境に MCP が無い場合は手動 JSON）
 - stockdeck 系スキル名（本リポジトリに存在しない）
 
 ## 6. VERSION CONTROL FORMAT（Knowledge/ImprovementHistory.md と同じ列）
@@ -63,3 +66,4 @@ MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.
 | Version | Author | Date | Reason | Changes | Expected Impact | Actual Impact |
 |---|---|---|---|---|---|---|
 | 1.0 | ISHIBASHI / Master | 2026-11-07 | ユーザー要望（常駐パートナー・社員・定時ブリーフ・指示書更新ルール） | 初版。§1 MASTER DIRECTIVE 要点、§2 常時指示 12 項、§3 PLAN、§4 更新ルール、§5 未取得 | 指示の忘失ゼロ | — |
+| 1.1 | Master | 2026-11-07 | 統合完了（/reports/session, /ask, /ui, 取込 API） | §2-10 を廃止印つきで改訂、§2-13〜15 追加、§5 取込経路を更新 | 手順と実装の不一致ゼロ | — |
