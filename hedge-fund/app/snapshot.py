@@ -16,7 +16,8 @@ from fastapi.testclient import TestClient
 
 UI_HTML = Path(__file__).parent / "ui" / "index.html"
 PATHS = ("/health", "/routine/daily", "/levels?symbol=USDJPY", "/decisions?limit=1", "/market-data?symbol=USDJPY&bars=90",
-         "/news/latest", "/event-windows", "/calendar/upcoming", "/macro/latest", "/strength", "/guards")
+         "/news/latest", "/event-windows", "/calendar/upcoming", "/macro/latest", "/strength", "/guards",
+         "/agents/roster", "/agents/live?since=0")
 
 
 def collect(client: TestClient) -> dict[str, object]:

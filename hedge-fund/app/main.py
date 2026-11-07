@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import improvement, integration, services
+from . import activity, improvement, integration, services
 from .config import BASE_DIR, Settings, load_settings
 from .engine import DecisionEngine
 from .execution import ExecutionDisabledError, MT5Bridge
@@ -52,6 +52,19 @@ def get_engine() -> DecisionEngine:
 @app.get("/health")
 def health(s: Settings = Depends(get_settings)):
     return {"status": "ok", "mode": s.mode.value, "llm_backend": s.llm_backend, "execution": "disabled"}
+
+
+@app.get("/agents/roster")
+def agents_roster(repo: Repository = Depends(get_repo)):
+    return activity.build_roster(repo, footer=integration.PLAN_FOOTER)
+
+
+@app.get("/agents/live")
+def agents_live(since: int = 0, repo: Repository = Depends(get_repo)):
+    live = activity.BUS.live(since)
+    if since == 0 and not live["events"]:
+        live = activity.stored_live(repo) or live  # メモリが空なら保存済みの直近サイクル
+    return live
 
 
 @app.post("/webhook/tradingview")

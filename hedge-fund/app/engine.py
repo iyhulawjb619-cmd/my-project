@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 from . import governance, risk, services
+from .activity import BUS, STEP_LABEL
 from .agents import BY_KEY, AgentSpec, agents_for_step
 from .config import Mode, Settings
 from .kpi import Trade, compute_kpi, monte_carlo, r_multiples_from_stats
@@ -38,9 +40,24 @@ class DecisionEngine:
             payload["system_computed"] = extra
         return payload
 
+    def _timed_run(self, spec: AgentSpec, payload: dict) -> AgentReport:
+        """backend.run を包んで活動を記録する（結果・例外はそのまま呼び出し側へ）。"""
+        BUS.agent_start(spec.key, spec.name, spec.step)
+        t0 = time.monotonic()
+        try:
+            report = self.backend.run(spec, payload)
+        except Exception as e:
+            BUS.agent_failed(spec.key, spec.name, spec.step, int((time.monotonic() - t0) * 1000), type(e).__name__)
+            raise
+        BUS.agent_done(spec.key, spec.name, spec.step, report.decision, report.confidence, report.risk_score,
+                       report.is_insufficient, int((time.monotonic() - t0) * 1000))
+        return report
+
     def _run_step(self, specs: list[AgentSpec], req: AnalysisRequest, prior: list[AgentReport], extra: dict | None = None) -> list[AgentReport]:
+        if specs:
+            BUS.step_start(specs[0].step, STEP_LABEL.get(specs[0].step, ""), [s.name for s in specs])
         with ThreadPoolExecutor(max_workers=max(1, len(specs))) as pool:
-            futures = [pool.submit(self.backend.run, s, self._payload(s, req, prior, extra)) for s in specs]
+            futures = [pool.submit(self._timed_run, s, self._payload(s, req, prior, extra)) for s in specs]
             return [f.result() for f in futures]
 
     def _statistics(self) -> dict:
@@ -61,6 +78,17 @@ class DecisionEngine:
     # --------------------------------------------------------------- cycle
     def run_cycle(self, req: AnalysisRequest) -> tuple[CEODecision, list[AgentReport]]:
         cycle_id = uuid.uuid4().hex[:16]
+        BUS.cycle_start(cycle_id, req.symbol)
+        try:
+            decision, reports = self._run_cycle(req, cycle_id)
+        except Exception as e:
+            BUS.cycle_end(f"サイクルが異常終了: {type(e).__name__}")
+            raise
+        BUS.cycle_end(f"最終判断: {decision.decision} / 信頼度 {decision.confidence}", decision.decision, decision.confidence)
+        self.repo.save_report("agent_events", cycle_id, "", BUS.export_cycle())  # 追記のみ。再起動後もリプレイできる
+        return decision, reports
+
+    def _run_cycle(self, req: AnalysisRequest, cycle_id: str) -> tuple[CEODecision, list[AgentReport]]:
         self._mtf = services.multi_timeframe(self.repo, req.symbol)
         if not req.market_data:
             req = req.model_copy(update={"market_data": self._stored_market_data(req.symbol)})
@@ -81,10 +109,16 @@ class DecisionEngine:
         reports.append(llm_risk)
         event = next((r for r in reports if r.agent == BY_KEY["event_risk"].name), None)
         risk_decision = risk.evaluate(ctx, req.proposal, llm_risk, event)
+        if risk_decision.approval == "REJECTED":
+            BUS.rule("Risk Manager が拒否: " + " / ".join(risk_decision.reasons), agent="risk", step=4, decision="REJECTED")
+        else:
+            BUS.rule("Risk Manager が承認: " + " / ".join(risk_decision.reasons), agent="risk", step=4, decision="APPROVED")
 
         # STEP5 監査
         auditor = self._run_step([BY_KEY["auditor"]], req, list(reports), {"risk_decision": risk_decision.model_dump()})[0]
         reports.append(auditor)
+        if auditor.risk_score > governance.AUDITOR_REEVALUATION_THRESHOLD:
+            BUS.rule(f"Auditor が再評価を要求（リスクスコア {auditor.risk_score}）", agent="auditor", step=5)
 
         # STEP6 最終判断（CEO は独自分析せず集約のみ）
         cons = governance.consensus(reports)
@@ -101,6 +135,10 @@ class DecisionEngine:
             cons.notes.append(f"注文案の方向 {req.proposal.direction} が CEO 判断 {ceo_decision} と不一致")
             ceo_decision = "WAIT"
         gov = governance.apply_rules(ceo_decision, ceo_conf, risk_decision.approval, auditor, cons.conflict)
+
+        for note in gov.notes:
+            BUS.rule(f"CEO 最終判断のガバナンス: {note}", agent="ceo", step=6, decision=gov.decision)
+        BUS.rule(f"CEO 最終判断: {gov.decision}（{source}）", agent="ceo", step=6, decision=gov.decision)
 
         decision = self._build_decision(cycle_id, req, reports, cons, ceo, source, gov, risk_decision)
 

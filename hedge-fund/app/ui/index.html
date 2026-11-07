@@ -6,6 +6,9 @@
 <title>マスター 端末</title>
 <meta name="description" content="ISHIBASHI AI HEDGE FUND OS（PLAN モード）の常駐 AI パートナー「マスター」のダッシュボード。発注機能は無い。">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ---------- トークン（ダーク基調・金融端末風） ---------- */
 :root {
@@ -37,12 +40,6 @@
 :root[data-theme="light"] {
   --bg: #f3f5f8; --bg-2: #e9edf2; --card: #ffffff; --card-2: #f5f7fa; --line: #d5dbe3; --line-2: #c2cad5;
   --fg: #111827; --fg-2: #374151; --fg-3: #6b7280; --tile-up: rgba(63,185,80,.25); --tile-down: rgba(248,81,73,.25);
-}
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f3f5f8; --bg-2: #e9edf2; --card: #ffffff; --card-2: #f5f7fa; --line: #d5dbe3; --line-2: #c2cad5;
-    --fg: #111827; --fg-2: #374151; --fg-3: #6b7280; --tile-up: rgba(63,185,80,.25); --tile-down: rgba(248,81,73,.25);
-  }
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -229,6 +226,133 @@ footer .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%
 footer .ok .dot { background: var(--up); } footer .err .dot { background: var(--red); } footer .nodata .dot { background: var(--yellow); }
 .loading { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+
+/* =====================================================================
+   FUTURE — 近未来テーマ（上のトークンを上書き。light 配色トグルは下で再定義）
+   装飾は「状態を伝える」ものに限る。
+   ===================================================================== */
+:root {
+  --disp: "Rajdhani", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --bg: #050914; --bg-2: #0a1122; --card: #0d1526; --card-2: #121c33; --line: #1b2a47; --line-2: #2a3d63;
+  --fg: #e8f0fb; --fg-2: #a9bad3; --fg-3: #8496b3;
+  --accent: #2fd4ee; --accent-2: #7fe6f7; --vi: #a78bfa; --on-accent: #050914;
+  --glass: rgba(13, 21, 38, .62); --glass-line: rgba(47, 212, 238, .24); --glow: rgba(47, 212, 238, .38);
+  --hdr: rgba(8, 13, 28, .78); --grid: rgba(120, 160, 220, .055);
+  --band: rgba(47, 212, 238, .12); --band-2: rgba(167, 139, 250, .09);
+  --log-bg: rgba(2, 5, 12, .72); --shadow: 0 10px 30px -14px rgba(0, 0, 0, .7);
+}
+:root[data-theme="light"] {
+  --accent: #0e7490; --accent-2: #22a6c4; --vi: #6d28d9; --on-accent: #fff;
+  --glass: rgba(255, 255, 255, .74); --glass-line: rgba(14, 116, 144, .3); --glow: rgba(14, 116, 144, .25);
+  --hdr: rgba(233, 237, 242, .85); --grid: rgba(15, 40, 80, .05);
+  --band: rgba(14, 116, 144, .10); --band-2: rgba(109, 40, 217, .07);
+  --log-bg: #eef2f7; --shadow: 0 8px 24px -14px rgba(15, 40, 80, .3);
+}
+body {
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+body::before {
+  content: ""; position: fixed; left: -20%; right: -20%; top: 0; height: 260px; pointer-events: none; z-index: 0;
+  background: linear-gradient(100deg, transparent 8%, var(--band) 35%, var(--band-2) 62%, transparent 88%);
+  filter: blur(28px); animation: bandDrift 42s ease-in-out infinite alternate;
+}
+@keyframes bandDrift { from { transform: translateX(-8%); } to { transform: translateX(8%); } }
+main { position: relative; z-index: 1; }
+header { background: var(--hdr); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); border-bottom-color: var(--glass-line); }
+footer.statusbar { z-index: 5; background: var(--hdr); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top-color: var(--glass-line); }
+.brand { letter-spacing: .1em; }
+.card {
+  position: relative; background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.card::before, .card::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; border: 0 solid var(--accent); }
+.card::before { left: -1px; top: -1px; border-top-width: 2px; border-left-width: 2px; border-top-left-radius: var(--radius); }
+.card::after { right: -1px; bottom: -1px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: var(--radius); }
+.card h2::before { content: ""; width: 3px; height: 13px; background: linear-gradient(var(--accent), var(--vi)); border-radius: 2px; }
+.num, .mono, table td.n, .clock, .countdown, .price, .dec, .gauge .val b, .tile .v, .tile .c, .rank, .scen .p, .breaker .lvl, .news .t, .ladder td, .ops-chip b, .dr-num {
+  font-family: var(--disp); letter-spacing: .02em;
+}
+.clock { font-size: 20px; } .price { font-size: 44px; } .gauge .val b { font-size: 40px; }
+.badge.plan { background: var(--accent-2); border-color: var(--accent-2); }
+.theme-btn:hover, .theme-btn:focus-visible { border-color: var(--accent); color: var(--fg); }
+.ask button { background: linear-gradient(90deg, var(--accent), var(--vi)); color: var(--on-accent); }
+.ask textarea:focus-visible, .ops-btn:focus-visible, .opsnode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* ライブ接続ランプ */
+.lamp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--disp); font-size: 12px; letter-spacing: .08em; color: var(--fg-2); }
+.lamp i { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); box-shadow: 0 0 0 0 transparent; }
+.lamp.ok i { background: var(--up); box-shadow: 0 0 8px var(--up); animation: lampPulse 2s ease-out infinite; }
+.lamp.run i { background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: lampPulse 1s ease-out infinite; }
+.lamp.err i { background: var(--down); box-shadow: 0 0 8px var(--down); }
+@keyframes lampPulse { 0% { box-shadow: 0 0 0 0 var(--glow); } 100% { box-shadow: 0 0 0 8px transparent; } }
+/* マスターのゲージ: 外周ティックと発光 */
+.gauge canvas { filter: drop-shadow(0 0 6px var(--glow)); }
+.gauge::before {
+  content: ""; position: absolute; inset: -9px; border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(from -120deg, var(--accent) 0 1.2deg, transparent 1.2deg 8deg);
+  opacity: .75;
+  -webkit-mask: radial-gradient(circle, transparent 78px, #000 79px, #000 83px, transparent 84px), conic-gradient(from -120deg, #000 0 240deg, transparent 240deg);
+  -webkit-mask-composite: source-in;
+  mask: radial-gradient(circle, transparent 78px, #000 79px, #000 83px, transparent 84px), conic-gradient(from -120deg, #000 0 240deg, transparent 240deg);
+  mask-composite: intersect;
+}
+/* CEO 判断の点灯 */
+.dec.on.BUY { box-shadow: 0 0 14px rgba(63, 185, 80, .55), inset 0 0 8px rgba(63, 185, 80, .25); }
+.dec.on.SELL { box-shadow: 0 0 14px rgba(248, 81, 73, .55), inset 0 0 8px rgba(248, 81, 73, .25); }
+.dec.on.WAIT { box-shadow: 0 0 14px rgba(210, 153, 34, .5), inset 0 0 8px rgba(210, 153, 34, .22); }
+
+/* ---------- オペレーションルーム ---------- */
+.ops-bar { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-bottom: 10px; }
+.ops-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border: 1px solid var(--line-2); border-radius: 999px; font-size: 12px; color: var(--fg-2); background: var(--card-2); }
+.ops-chip b { font-size: 16px; color: var(--fg); }
+.ops-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); }
+.ops-chip.run i { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.ops-chip.done i { background: var(--up); }
+.ops-chip.insuf i { background: transparent; border: 1px dashed var(--fg-2); }
+.ops-btn { background: var(--card-2); border: 1px solid var(--glass-line); color: var(--fg); border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
+.ops-btn:hover { border-color: var(--accent); }
+.ops-btn.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.ops-main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .ops-main { grid-template-columns: minmax(0, 1fr); } }
+.ops-stage { position: relative; border: 1px solid var(--line); border-radius: 6px; background: var(--log-bg); overflow: hidden; min-height: 160px; }
+.ops-stage canvas { display: block; width: 100%; }
+#opsNodes { position: absolute; inset: 0; }
+.opsnode { position: absolute; background: transparent; border: 0; padding: 0; border-radius: 50%; cursor: pointer; }
+.ops-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; }
+.ops-msg[hidden] { display: none; }
+.ops-logh { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.ops-log { margin: 0; padding: 6px 8px; list-style: none; max-height: 520px; overflow: auto; background: var(--log-bg); border: 1px solid var(--line); border-radius: 6px; font-family: var(--mono); font-size: 12px; line-height: 1.5; }
+@media (max-width: 1100px) { .ops-log { max-height: 240px; } }
+.ops-log li { padding: 1px 0; border-bottom: 1px dotted var(--line); overflow-wrap: anywhere; }
+.ops-log .t { color: var(--fg-3); }
+.ops-log .tag { display: inline-block; min-width: 4em; color: var(--accent); }
+.ops-log li.agent_done .tag { color: var(--up); }
+.ops-log li.rule .tag, .ops-log li.insuf .tag { color: var(--wait); }
+.ops-log li.cycle_start .tag, .ops-log li.cycle_end .tag { color: var(--vi); }
+.ops-log li.BUY .x { color: var(--up); } .ops-log li.SELL .x { color: var(--down); } .ops-log li.WAIT .x { color: var(--wait); }
+.ops-foot { margin-top: 8px; }
+.ops-drawer {
+  position: fixed; z-index: 30; top: 0; right: 0; bottom: 0; width: 380px; max-width: 100vw; overflow: auto; padding: 14px;
+  background: var(--card); border-left: 1px solid var(--glass-line); box-shadow: -12px 0 40px -12px rgba(0, 0, 0, .6);
+}
+.ops-drawer[hidden] { display: none; }
+@media (max-width: 700px) {
+  .ops-drawer { top: auto; left: 0; width: 100%; max-height: 78vh; border-left: 0; border-top: 1px solid var(--glass-line); border-radius: 12px 12px 0 0; }
+}
+.dr-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 16px; }
+.ops-drawer .kv { margin-bottom: 8px; }
+.ops-drawer h3 { margin: 10px 0 4px; font-size: 12px; color: var(--fg-3); }
+.ops-drawer ul { margin: 0; padding-left: 18px; font-size: 13px; }
+.dr-dec { font-weight: 800; } .dr-dec.BUY { color: var(--up); } .dr-dec.SELL { color: var(--down); } .dr-dec.WAIT { color: var(--wait); }
+.dr-head b { overflow-wrap: anywhere; }
+
+@media (max-width: 700px) { .guard-grid { grid-template-columns: minmax(0, 1fr); } }
+.guard-grid > * { min-width: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, .lamp i, .loading { animation: none !important; }
+}
 </style>
 </head>
 <body>
@@ -237,6 +361,7 @@ footer .ok .dot { background: var(--up); } footer .err .dot { background: var(--
   <div class="brand">マスター <small>ISHIBASHI AI HEDGE FUND OS</small></div>
   <span id="modeBadge" class="badge plan">PLAN</span>
   <span id="execBadge" class="badge off">発注: 無効</span>
+  <span class="lamp" id="lamp" title="ライブ接続"><i></i><span id="lampTxt">接続中</span></span>
   <div class="hdr-item"><span class="k">JST</span><span id="clock" class="clock">--:--:--</span><span id="dst" class="muted"></span></div>
   <div class="hdr-item"><span class="k">次の重要な材料</span><span id="nextEvent" class="sub">未取得</span><span id="countdown" class="countdown"></span></div>
   <div class="hdr-item"><span class="k">警戒フラグ</span><div id="flags" class="flags"><span class="badge off">未取得</span></div></div>
@@ -267,6 +392,38 @@ footer .ok .dot { background: var(--up); } footer .err .dot { background: var(--
       </div>
     </div>
   </section>
+
+  <!-- ②b オペレーションルーム（社員の稼働可視化） -->
+  <section class="card col-12 ops" id="opsCard" aria-labelledby="opsTitle">
+    <h2 id="opsTitle">オペレーションルーム <span class="status"><span id="st-agents">未取得</span> ・ <span id="st-opslive">未取得</span></span></h2>
+    <div class="ops-bar" id="opsBar">
+      <span class="ops-chip run"><i></i>稼働中 <b id="cnRun">0</b></span>
+      <span class="ops-chip done"><i></i>完了 <b id="cnDone">0</b></span>
+      <span class="ops-chip insuf"><i></i>データ不足 <b id="cnInsuf">0</b></span>
+      <span class="ops-chip idle"><i></i>待機 <b id="cnIdle">0</b></span>
+      <span class="sub" id="opsCycle"></span>
+      <span class="spacer"></span>
+      <button type="button" class="ops-btn" id="replayBtn">リプレイ（3 倍速）</button>
+    </div>
+    <div class="ops-main">
+      <div class="ops-stage" id="opsStage">
+        <canvas id="opsCanvas" aria-hidden="true"></canvas>
+        <div id="opsNodes"></div>
+        <div id="opsMsg" class="ops-msg muted" hidden></div>
+      </div>
+      <div class="ops-side">
+        <div class="muted ops-logh"><span>ライブログ（新しい順）</span><span id="opsMode"></span></div>
+        <ol class="ops-log" id="opsLog" aria-live="off"><li class="missing">未取得</li></ol>
+        <div class="muted" id="opsEmpty" hidden>まだ実行履歴がありません。「マスターに聞く」を実行すると社員が動きます</div>
+      </div>
+    </div>
+    <div class="muted ops-foot" id="opsFoot">PLANモードのため実発注は行いません</div>
+  </section>
+
+  <aside class="ops-drawer" id="opsDrawer" role="dialog" aria-modal="false" aria-labelledby="drName" hidden>
+    <div class="dr-head"><b id="drName">社員</b><button type="button" class="ops-btn" id="drClose" aria-label="閉じる（Esc）">閉じる</button></div>
+    <div id="drBody"></div>
+  </aside>
 
   <!-- ③ ドル円パネル -->
   <section class="card col-8">
@@ -392,6 +549,8 @@ footer .ok .dot { background: var(--up); } footer .err .dot { background: var(--
   <span id="sb-strength"><span class="dot"></span>strength</span>
   <span id="sb-guards"><span class="dot"></span>guards</span>
   <span id="sb-market"><span class="dot"></span>market-data</span>
+  <span id="sb-agents"><span class="dot"></span>agents</span>
+  <span id="sb-live"><span class="dot"></span>live</span>
   <span class="spacer"></span>
   <span id="sb-last">最終更新 --</span>
 </footer>
@@ -969,7 +1128,9 @@ $('askForm').addEventListener('submit', async (e) => {
   const q = $('askText').value.trim();
   if (!q) return;
   const btn = $('askBtn'); btn.disabled = true; $('askStatus').textContent = '送信中…'; $('answer').innerHTML = '<span class="loading muted">マスターが社員の出力を集約しています…</span>';
+  if (typeof opsFast === 'function') opsFast(true);
   const r = await api('/ask', { method: 'POST', body: { question: q, symbol: 'USDJPY' }, timeout: 120000 });
+  if (typeof opsFast === 'function') opsFast(false);
   btn.disabled = false;
   if (!r.ok) {
     $('askStatus').textContent = r.status === 404 ? 'POST /ask は未実装（統合待ち）' : `失敗: ${r.error}`;
@@ -1016,6 +1177,405 @@ every(POLL.strength, loadStrength);
 every(POLL.guards, loadGuards);
 setInterval(renderBar24, 60000);
 setInterval(loadHealth, 300000);
+
+/* =====================================================================
+   オペレーションルーム  GET /agents/roster（60 秒）/ GET /agents/live?since=N（1.5 秒、質問中 0.5 秒）
+   ===================================================================== */
+const OPS = {
+  roster: null, live: null, events: [], seq: 0, sel: null, replay: null, particles: [], pos: {},
+  W: 0, H: 0, narrow: false, raf: 0, fast: false, liveTimer: 0, inflight: false, nodeEls: {}, C: {}, rosterSig: '', lanes: [], lastBtn: null,
+};
+const SNAPSHOT_MODE = () => !!window.__SNAPSHOT__;
+const reducedMotion = () => !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+const ST_JA = { running: '稼働中', queued: '待機', done: '完了', insufficient: 'データ不足', idle: '待機' };
+const TAG_JA = { cycle_start: '開始', step_start: 'STEP', agent_start: '着手', agent_done: '完了', rule: 'ルール', cycle_end: '終了' };
+const LOG_MAX = 200;
+
+function opsColors() {
+  const g = cssVar;
+  OPS.C = { up: g('--up'), down: g('--down'), wait: g('--wait'), acc: g('--accent'), vi: g('--vi') || '#a78bfa', fg: g('--fg'), fg2: g('--fg-2'), fg3: g('--fg-3'), line: g('--line-2'), red: g('--red'), card: g('--card'), sans: g('--sans'), disp: g('--disp') };
+}
+function decColor(d) { return d === 'BUY' ? OPS.C.up : d === 'SELL' ? OPS.C.down : d === 'WAIT' ? OPS.C.wait : OPS.C.fg2; }
+function agentGroup(a) {
+  if (a.key === 'master') return 'master';
+  if (a.key === 'ceo' || a.key === 'risk' || a.key === 'auditor') return 'exec';
+  if (a.step >= 1 && a.step <= 3) return 'lane' + a.step;
+  return 'support';
+}
+function opsAgents() { return OPS.roster && Array.isArray(OPS.roster.agents) ? OPS.roster.agents : []; }
+function opsStepLabel(n) {
+  const st = OPS.roster && Array.isArray(OPS.roster.steps) ? OPS.roster.steps.find((x) => x.step === n) : null;
+  return `STEP ${n}${st && st.label ? ' ' + st.label : ''}`;
+}
+
+/** ノードの現在状態: リプレイ中 > ライブ > roster */
+function stateOf(a) {
+  if (OPS.replay) return OPS.replay.state[a.key] || { status: 'idle' };
+  const lv = OPS.live && OPS.live.agents && OPS.live.agents[a.key];
+  if (lv && (OPS.live.running || lv.status !== 'idle')) return lv;
+  return { status: a.status || 'idle', decision: a.decision, confidence: a.confidence };
+}
+function opsCounts() {
+  const c = { run: 0, done: 0, insuf: 0, idle: 0 };
+  opsAgents().forEach((a) => {
+    const s = stateOf(a).status;
+    if (s === 'running') c.run++; else if (s === 'done') c.done++; else if (s === 'insufficient') c.insuf++; else c.idle++;
+  });
+  return c;
+}
+function opsUpdateBar() {
+  const c = opsCounts();
+  $('cnRun').textContent = c.run; $('cnDone').textContent = c.done; $('cnInsuf').textContent = c.insuf; $('cnIdle').textContent = c.idle;
+  const r = OPS.roster, lv = OPS.live;
+  const parts = [];
+  if (OPS.replay) parts.push('リプレイ再生中');
+  else if (lv && lv.running) parts.push('サイクル実行中' + (lv.cycle_id ? ' ' + lv.cycle_id : ''));
+  else if (r && r.cycle_id) parts.push('直近サイクル ' + r.cycle_id + (r.decision ? ' ・ CEO ' + r.decision : ''));
+  else if (r) parts.push('サイクル履歴 ' + MISSING);
+  $('opsCycle').textContent = parts.join(' ');
+  $('opsMode').textContent = OPS.replay ? 'リプレイ' : (SNAPSHOT_MODE() ? 'スナップショット' : '');
+}
+
+/* ---------- レイアウト（デスクトップ: 階層 / 狭幅: 縦のレーン） ---------- */
+function opsLayout() {
+  const stage = $('opsStage'); if (!stage) return;
+  const W = Math.max(280, Math.floor(stage.clientWidth || 0));
+  const agents = opsAgents();
+  OPS.W = W; OPS.narrow = W < 640;
+  const narrow = OPS.narrow, r = narrow ? 13 : 16, minSlot = narrow ? 58 : 88, rowH = narrow ? 66 : 84, pad = narrow ? 6 : 14;
+  OPS.r = r; OPS.minSlot = minSlot;
+  const defs = [['master', 'マスター'], ['exec', 'CEO ・ リスク ・ 監査'], ['lane1', opsStepLabel(1)], ['lane2', opsStepLabel(2)], ['lane3', opsStepLabel(3)], ['support', '学習 ・ メモリ ・ 研究 ・ 実行']];
+  OPS.pos = {}; OPS.lanes = [];
+  let y = 4;
+  defs.forEach(([id, label]) => {
+    const list = agents.filter((a) => agentGroup(a) === id);
+    if (!list.length) return;
+    const top = y; y += 18;
+    const perRow = Math.max(1, Math.floor((W - 2 * pad) / minSlot));
+    const slot = Math.min(150, (W - 2 * pad) / Math.min(list.length, perRow));
+    for (let i = 0; i < list.length; i += perRow) {
+      const row = list.slice(i, i + perRow);
+      row.forEach((a, j) => { OPS.pos[a.key] = { x: W / 2 + (j - (row.length - 1) / 2) * slot, y: y + r + 8, slot }; });
+      y += rowH;
+    }
+    OPS.lanes.push({ id, label, top, bottom: y - 4 });
+    y += 4;
+  });
+  OPS.H = Math.max(160, y);
+  const cv = $('opsCanvas'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(OPS.H * dpr);
+  cv.style.height = OPS.H + 'px'; OPS.dpr = dpr;
+  // フォーカス可能なオーバーレイ
+  const box = $('opsNodes');
+  const sig = agents.map((a) => a.key).join(',');
+  if (sig !== OPS.rosterSig) {
+    OPS.rosterSig = sig; OPS.nodeEls = {}; box.textContent = '';
+    agents.forEach((a) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'opsnode'; b.tabIndex = 0; b.dataset.key = a.key;
+      b.addEventListener('click', () => opsOpenDrawer(a.key, b));
+      box.appendChild(b); OPS.nodeEls[a.key] = b;
+    });
+  }
+  agents.forEach((a) => {
+    const b = OPS.nodeEls[a.key], p = OPS.pos[a.key]; if (!b || !p) return;
+    const s = r + 8;
+    b.style.left = (p.x - s) + 'px'; b.style.top = (p.y - s) + 'px'; b.style.width = (2 * s) + 'px'; b.style.height = (2 * s) + 'px';
+  });
+  opsKick();
+}
+function opsAria() {
+  opsAgents().forEach((a) => {
+    const b = OPS.nodeEls[a.key]; if (!b) return;
+    const s = stateOf(a);
+    b.setAttribute('aria-label', `${a.name}（${ST_JA[s.status] || s.status}${s.decision ? ' ' + s.decision : ''}）詳細を開く`);
+    b.title = a.name;
+  });
+}
+
+/* ---------- 描画 ---------- */
+function shortName(a) { return String(a.name || a.key).replace(/ Agent$/, ''); }
+function edgeCurve(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+  const bow = Math.min(26, len * 0.12) * (Math.abs(dy) < 4 ? -1 : 1);
+  return { x0: a.x, y0: a.y, cx: (a.x + b.x) / 2 - dy / len * bow, cy: (a.y + b.y) / 2 + dx / len * bow, x1: b.x, y1: b.y };
+}
+function bez(c, t) {
+  const u = 1 - t;
+  return { x: u * u * c.x0 + 2 * u * t * c.cx + t * t * c.x1, y: u * u * c.y0 + 2 * u * t * c.cy + t * t * c.y1 };
+}
+function opsEdges() {
+  const keys = new Set(opsAgents().map((a) => a.key));
+  return ((OPS.roster && OPS.roster.edges) || []).filter((e) => keys.has(e.from) && keys.has(e.to) && OPS.pos[e.from] && OPS.pos[e.to]);
+}
+function opsActive() {
+  if (OPS.replay) return true;
+  return !!(OPS.live && OPS.live.running);
+}
+function opsDraw(ts) {
+  const cv = $('opsCanvas'); if (!cv || !OPS.W) return;
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const C = OPS.C, W = OPS.W, H = OPS.H, dpr = OPS.dpr || 1, rm = reducedMotion();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.textBaseline = 'middle';
+  // レーン帯
+  OPS.lanes.forEach((l, i) => {
+    ctx.fillStyle = i % 2 ? 'rgba(120,160,220,.05)' : 'rgba(120,160,220,.025)';
+    ctx.fillRect(0, l.top, W, l.bottom - l.top);
+    ctx.fillStyle = C.fg3; ctx.font = `600 ${OPS.narrow ? 10 : 11}px ${C.sans}`; ctx.textAlign = 'left';
+    ctx.fillText(l.label, 8, l.top + 9);
+  });
+  const agents = opsAgents(), byKey = {}; agents.forEach((a) => { byKey[a.key] = a; });
+  const active = opsActive();
+  // エッジ
+  opsEdges().forEach((e) => {
+    const c = edgeCurve(OPS.pos[e.from], OPS.pos[e.to]);
+    const src = stateOf(byKey[e.from]);
+    const lit = active && (src.status === 'done');
+    ctx.beginPath(); ctx.moveTo(c.x0, c.y0); ctx.quadraticCurveTo(c.cx, c.cy, c.x1, c.y1);
+    if (e.kind === 'veto') {
+      ctx.setLineDash([2, 4]); ctx.strokeStyle = C.red; ctx.globalAlpha = lit ? 0.95 : 0.6; ctx.lineWidth = 1.4;
+    } else {
+      ctx.setLineDash(e.kind === 'report' ? [6, 3] : []);
+      ctx.strokeStyle = e.kind === 'report' ? C.vi : C.acc;
+      ctx.globalAlpha = lit ? 0.55 : (OPS.narrow ? 0.03 : 0.06); ctx.lineWidth = lit ? 1.4 : 1;
+    }
+    ctx.stroke();
+  });
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  // 光の粒
+  if (!rm) {
+    const now = ts || performance.now();
+    OPS.particles = OPS.particles.filter((p) => now - p.t0 < p.dur);
+    OPS.particles.forEach((p) => {
+      const t = (now - p.t0) / p.dur; if (t < 0) return;
+      const pt = bez(p.c, t);
+      ctx.save(); ctx.shadowColor = p.col; ctx.shadowBlur = 10; ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, 2.6, 0, 6.2832); ctx.fill(); ctx.restore();
+    });
+  } else OPS.particles = [];
+  // ノード
+  const now = ts || performance.now();
+  agents.forEach((a) => {
+    const p = OPS.pos[a.key]; if (!p) return;
+    const s = stateOf(a), r = OPS.r, st = s.status;
+    const col = st === 'done' ? decColor(s.decision) : st === 'running' ? C.acc : C.fg3;
+    const shape = () => {
+      ctx.beginPath();
+      if (a.votes === false) { const q = r * 0.92; if (ctx.roundRect) ctx.roundRect(p.x - q, p.y - q, 2 * q, 2 * q, 5); else ctx.rect(p.x - q, p.y - q, 2 * q, 2 * q); } else ctx.arc(p.x, p.y, r, 0, 6.2832);
+    };
+    ctx.save();
+    if (st === 'running') {
+      const k = rm ? 0.5 : (Math.sin(now / 260) + 1) / 2;
+      ctx.shadowColor = C.acc; ctx.shadowBlur = 8 + 10 * k;
+      shape(); ctx.fillStyle = 'rgba(47,212,238,.14)'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = C.acc; ctx.stroke();
+      if (!rm) { ctx.shadowBlur = 0; ctx.globalAlpha = 0.5 * (1 - k); ctx.beginPath(); ctx.arc(p.x, p.y, r + 4 + 8 * k, 0, 6.2832); ctx.lineWidth = 1.5; ctx.stroke(); }
+    } else if (st === 'done') {
+      shape(); ctx.fillStyle = col; ctx.globalAlpha = 0.16; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke();
+      if (isNum(s.confidence)) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(100, s.confidence)) / 100);
+        ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = col; ctx.stroke();
+      }
+    } else if (st === 'insufficient') {
+      shape(); ctx.setLineDash([4, 3]); ctx.lineWidth = 1.6; ctx.strokeStyle = C.fg2; ctx.stroke();
+    } else {
+      shape(); ctx.lineWidth = 1; ctx.strokeStyle = C.line; ctx.globalAlpha = st === 'queued' ? 0.9 : 0.55; ctx.stroke();
+      if (st === 'queued') { ctx.setLineDash([1, 3]); ctx.strokeStyle = C.fg3; ctx.stroke(); }
+    }
+    ctx.restore();
+    // 中の記号（色だけに頼らない）
+    ctx.textAlign = 'center'; ctx.font = `700 ${OPS.narrow ? 12 : 14}px ${C.disp}`;
+    if (st === 'done') { ctx.fillStyle = col; ctx.fillText(s.decision === 'BUY' ? 'B' : s.decision === 'SELL' ? 'S' : s.decision === 'WAIT' ? 'W' : '・', p.x, p.y + 1); }
+    else if (st === 'insufficient') { ctx.fillStyle = C.fg2; ctx.fillText('−', p.x, p.y + 1); }
+    else if (st === 'running') { ctx.fillStyle = C.acc; ctx.fillText('…', p.x, p.y); }
+    // 名前
+    ctx.font = `${OPS.narrow ? 10 : 11}px ${C.sans}`; ctx.fillStyle = st === 'idle' ? C.fg3 : C.fg2;
+    let nm = shortName(a); const maxW = Math.max(30, p.slot - 4);
+    while (nm.length > 2 && ctx.measureText(nm).width > maxW) nm = nm.slice(0, -1);
+    if (nm !== shortName(a)) nm = nm.slice(0, -1) + '…';
+    ctx.fillText(nm, p.x, p.y + r + 14);
+  });
+}
+function opsNeedAnim() {
+  if (OPS.replay) return true;
+  if (reducedMotion()) return false;
+  return OPS.particles.length > 0 || opsCounts().run > 0;
+}
+function opsKick() { if (!OPS.raf) OPS.raf = requestAnimationFrame(opsFrame); }
+function opsFrame(ts) {
+  OPS.raf = 0;
+  if (document.hidden) return;
+  try { replayStep(ts); opsDraw(ts); } catch (e) { console.error('ops draw', e); }
+  if (opsNeedAnim()) opsKick();
+}
+function spawnParticles(key) {
+  if (reducedMotion() || !OPS.W) return;
+  const now = performance.now();
+  opsEdges().filter((e) => e.from === key && e.kind !== 'veto').forEach((e) => {
+    if (OPS.particles.length > 80) return;
+    OPS.particles.push({ c: edgeCurve(OPS.pos[e.from], OPS.pos[e.to]), t0: now, dur: 900, col: e.kind === 'report' ? OPS.C.vi : OPS.C.acc });
+  });
+}
+
+/* ---------- ログ ---------- */
+function logLine(e) {
+  const t = parseJst(e.t);
+  const dec = e.decision && /^(BUY|SELL|WAIT)$/.test(e.decision) ? e.decision : '';
+  const cls = [e.type, e.insufficient ? 'insuf' : '', dec].filter(Boolean).join(' ');
+  const extra = [isNum(e.confidence) ? '信頼度 ' + e.confidence : '', isNum(e.duration_ms) ? e.duration_ms + 'ms' : ''].filter(Boolean).join(' ・ ');
+  return `<li class="${esc(cls)}"><span class="t">${t ? hms(t) : '--:--:--'}</span> <span class="tag">${esc(TAG_JA[e.type] || e.type)}</span><span class="x">${esc(e.text || '')}</span>${extra ? ` <span class="t">${esc(extra)}</span>` : ''}</li>`;
+}
+function opsRenderLog() {
+  const list = OPS.replay ? OPS.replay.log : OPS.events;
+  const box = $('opsLog'), empty = $('opsEmpty');
+  const noLive = !OPS.replay && OPS.liveErr;
+  if (!list.length) {
+    box.innerHTML = noLive ? `<li class="missing">${MISSING}</li>` : '';
+    empty.hidden = !!noLive || OPS.replay;
+    return;
+  }
+  empty.hidden = true;
+  box.innerHTML = list.slice(-LOG_MAX).reverse().map(logLine).join('');
+}
+
+/* ---------- 取得 ---------- */
+function setLamp(cls, txt) { const l = $('lamp'); if (!l) return; l.className = 'lamp ' + cls; $('lampTxt').textContent = txt; }
+function opsApplyLive(d, initial) {
+  OPS.live = d;
+  const evs = Array.isArray(d.events) ? d.events : [];
+  if (isNum(d.next_seq) && d.next_seq < OPS.seq) { OPS.events = []; OPS.seq = 0; }   // サーバー再起動
+  const fresh = evs.filter((e) => isNum(e.seq) && e.seq > OPS.seq);
+  fresh.forEach((e) => { OPS.events.push(e); OPS.seq = Math.max(OPS.seq, e.seq); if (!initial && e.type === 'agent_done' && e.agent && !OPS.replay) spawnParticles(e.agent); });
+  if (isNum(d.next_seq)) OPS.seq = Math.max(OPS.seq, d.next_seq - 1);
+  if (OPS.events.length > 500) OPS.events = OPS.events.slice(-500);
+  if (!OPS.replay) { opsRenderLog(); opsUpdateBar(); opsAria(); }
+  opsKick();
+}
+async function loadLive() {
+  if (OPS.inflight) return; OPS.inflight = true;
+  const first = OPS.seq === 0 && !OPS.liveSeen;
+  const r = await api('/agents/live?since=' + (first ? 0 : OPS.seq));
+  OPS.inflight = false;
+  OPS.liveErr = !r.ok;
+  const ok = handle('live', 'st-opslive', r, (d) => { d = d || {}; opsApplyLive(d, first); OPS.liveSeen = true; });
+  if (!ok) { if (!OPS.replay) opsRenderLog(); }
+  if (SNAPSHOT_MODE()) setLamp('', 'SNAPSHOT');
+  else if (!ok) setLamp('err', '切断');
+  else setLamp(OPS.live && OPS.live.running ? 'run' : 'ok', OPS.live && OPS.live.running ? '実行中' : 'LIVE');
+  scheduleLive();
+}
+function scheduleLive() {
+  clearTimeout(OPS.liveTimer);
+  if (SNAPSHOT_MODE() || document.hidden) return;
+  OPS.liveTimer = setTimeout(loadLive, OPS.fast ? 500 : 1500);
+}
+function opsFast(on) { OPS.fast = !!on; if (!SNAPSHOT_MODE() && !document.hidden) { clearTimeout(OPS.liveTimer); OPS.liveTimer = setTimeout(loadLive, on ? 100 : 1500); } }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { opsKick(); if (!SNAPSHOT_MODE()) loadLive(); } else clearTimeout(OPS.liveTimer); });
+
+async function loadRoster() {
+  const r = await api('/agents/roster');
+  const ok = handle('agents', 'st-agents', r, (d) => {
+    if (!d || !Array.isArray(d.agents)) throw new Error('roster 形式');
+    OPS.roster = d; $('opsMsg').hidden = true;
+    $('opsFoot').textContent = d.footer || 'PLANモードのため実発注は行いません';
+    opsLayout(); opsAria(); opsUpdateBar();
+    if (OPS.sel) opsRenderDrawer();
+  });
+  if (!ok && !OPS.roster) {
+    const m = $('opsMsg'); m.hidden = false; m.textContent = MISSING + '（社員一覧を取得できません）';
+  }
+  opsKick();
+}
+
+/* ---------- リプレイ ---------- */
+async function startReplay() {
+  if (OPS.replay) { stopReplay(); return; }
+  const btn = $('replayBtn');
+  btn.disabled = true;
+  let evs = null;
+  const r = await api('/agents/live?since=0');
+  if (r.ok && r.data && Array.isArray(r.data.events)) evs = r.data.events; else evs = OPS.events.slice();
+  btn.disabled = false;
+  evs = (evs || []).filter((e) => e && typeof e === 'object').sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  if (!evs.length) { OPS.replay = null; OPS.events.length || ($('opsEmpty').hidden = false); opsRenderLog(); return; }
+  const state = {}; opsAgents().forEach((a) => { state[a.key] = { status: 'idle' }; });
+  OPS.replay = { evs, i: 0, t0: null, state, log: [], last: Math.max(...evs.map((e) => e.ms || 0)) };
+  btn.textContent = 'リプレイ停止'; btn.classList.add('on');
+  opsRenderLog(); opsUpdateBar(); opsAria(); opsKick();
+}
+function stopReplay() {
+  OPS.replay = null; OPS.particles = [];
+  const btn = $('replayBtn'); btn.textContent = 'リプレイ（3 倍速）'; btn.classList.remove('on');
+  opsRenderLog(); opsUpdateBar(); opsAria(); opsKick();
+}
+function replayStep(ts) {
+  const rp = OPS.replay; if (!rp) return;
+  if (rp.t0 === null) rp.t0 = ts;
+  const rt = (ts - rp.t0) * 3;
+  let changed = false;
+  while (rp.i < rp.evs.length && (rp.evs[rp.i].ms || 0) <= rt) {
+    const e = rp.evs[rp.i++]; changed = true;
+    rp.log.push(e);
+    if (e.agent && rp.state[e.agent]) {
+      if (e.type === 'agent_start') rp.state[e.agent] = { status: 'running' };
+      else if (e.type === 'agent_done') { rp.state[e.agent] = { status: e.insufficient ? 'insufficient' : 'done', decision: e.decision, confidence: e.confidence }; spawnParticles(e.agent); }
+    }
+    if (e.type === 'cycle_start') Object.keys(rp.state).forEach((k) => { rp.state[k] = { status: 'idle' }; });
+  }
+  if (changed) { opsRenderLog(); opsUpdateBar(); opsAria(); }
+  if (rp.i >= rp.evs.length && rt > rp.last + 1800) stopReplay();
+}
+$('replayBtn').addEventListener('click', startReplay);
+
+/* ---------- ドロワー ---------- */
+function opsRenderDrawer() {
+  const a = opsAgents().find((x) => x.key === OPS.sel); if (!a) return;
+  const s = stateOf(a);
+  $('drName').textContent = a.name || a.key;
+  const dec = s.decision || a.decision;
+  const decH = dec ? `<span class="dr-dec ${esc(dec)}">${esc(dec)}</span>` : `<span class="missing">${MISSING}</span>`;
+  const li = (arr) => (Array.isArray(arr) && arr.length ? '<ul>' + arr.map((x) => `<li>${esc(x)}</li>`).join('') + '</ul>' : `<span class="missing">${MISSING}</span>`);
+  const upd = a.updated_at ? parseJst(a.updated_at) : null;
+  $('drBody').innerHTML = `
+    <div class="sub" style="margin-bottom:8px">${text(a.role_ja)}</div>
+    <div class="kv">
+      <span class="k">レベル / STEP</span><span class="dr-num">${isNum(a.level) ? 'L' + a.level : MISSING} / ${isNum(a.step) ? 'STEP ' + a.step : MISSING}</span>
+      <span class="k">投票権</span><span>${a.votes ? 'あり' : 'なし（助言・統制）'}</span>
+      <span class="k">状態</span><span>${esc(ST_JA[s.status] || s.status || MISSING)}</span>
+      <span class="k">判断</span><span>${decH}</span>
+      <span class="k">信頼度</span><span class="dr-num">${fmtOr(isNum(s.confidence) ? s.confidence : a.confidence, 0)}</span>
+      <span class="k">リスクスコア</span><span class="dr-num">${fmtOr(a.risk_score, 0)}</span>
+      <span class="k">分析回数</span><span class="dr-num">${isNum(a.analyses_count) ? a.analyses_count : `<span class="missing">${MISSING}</span>`}</span>
+      <span class="k">平均信頼度</span><span class="dr-num">${fmtOr(a.avg_confidence, 0)}</span>
+      <span class="k">更新</span><span>${upd ? esc(md(upd) + ' ' + hms(upd) + ' JST') : `<span class="missing">${MISSING}</span>`}</span>
+    </div>
+    <h3>要約</h3><div style="font-size:13px;overflow-wrap:anywhere">${text(a.headline)}</div>
+    <h3>主な要因</h3>${li(a.key_factors)}
+    <h3>無効条件</h3>${li(a.invalidation)}`;
+}
+function opsOpenDrawer(key, btn) {
+  OPS.sel = key; OPS.lastBtn = btn || OPS.nodeEls[key] || null;
+  opsRenderDrawer(); $('opsDrawer').hidden = false; $('drClose').focus();
+}
+function opsCloseDrawer() {
+  if ($('opsDrawer').hidden) return;
+  $('opsDrawer').hidden = true; OPS.sel = null;
+  if (OPS.lastBtn) { try { OPS.lastBtn.focus(); } catch (_) {} }
+}
+$('drClose').addEventListener('click', opsCloseDrawer);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') opsCloseDrawer(); });
+
+/* ---------- 起動 ---------- */
+opsColors();
+if (window.ResizeObserver) new ResizeObserver(() => { if (OPS.roster) opsLayout(); }).observe($('opsStage'));
+window.addEventListener('resize', () => { if (OPS.roster) opsLayout(); });
+new MutationObserver(() => { opsColors(); opsKick(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+if (window.matchMedia) { try { window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { opsColors(); opsKick(); }); } catch (_) {} }
+$('opsEmpty').hidden = true;
+(async () => { await loadRoster(); await loadLive(); })();
+setInterval(loadRoster, 60000);
 </script>
 </body>
 </html>

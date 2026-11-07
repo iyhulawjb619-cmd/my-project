@@ -13,6 +13,8 @@ USDJPY を主対象に、21 の Agent + 新社員 5（Master / Global Macro Rese
 | サーバー無しで見る | `python -m app.snapshot` → `snapshot.html` をダブルクリック（その時点のデータ入り・読み取り専用） |
 | Claude に任せる | Claude Code で `/fx-master-partner`（TradingView MCP から取得 → 取込 → ブリーフ） |
 
+画面の「オペレーションルーム」で、26 人の社員の状態（稼働・完了・データ不足）、直近の出力、判断サイクルの動き（ライブログとリプレイ）を見られます。
+
 取込は追記専用で、同じ内容を再度入れても増えません。スナップショットは発注・口座操作を含みません。
 
 ## 構成
@@ -85,6 +87,8 @@ python -m pytest -q
 | Method | Path | 内容 |
 |---|---|---|
 | GET | `/health` | モード確認（`PLAN` / execution: disabled） |
+| GET | `/agents/roster` | 社員 26 名の名簿（役割・直近サイクルの判断・信頼度・過去 20 サイクルの出力数と平均信頼度・接続関係） |
+| GET | `/agents/live?since=N` | 判断サイクルの進行イベント（プロセス内 500 件・since より新しいものだけ）と各社員の稼働状態 |
 | POST | `/webhook/tradingview` | TradingView アラート受信 → market_data 保存 → バックグラウンドで判断サイクル |
 | POST | `/analyze` | 1 サイクル実行し CEO 判断（JSON）を返す |
 | POST | `/analyze/report` | 同上を日本語レポートで返す（CEO + 全 Agent） |
