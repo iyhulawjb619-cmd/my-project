@@ -1,0 +1,4 @@
+__pycache__/
+.pytest_cache/
+hedge-fund/*.db
+hedge-fund/.env
