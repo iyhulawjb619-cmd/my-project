@@ -72,7 +72,7 @@ def test_mt5_bridge_refuses_everything_in_plan():
 # -------------------------------------------------------------------- agents
 
 def test_every_agent_has_prompt_file_and_schema_is_closed():
-    assert len(AGENTS) == 21
+    assert len(AGENTS) == 26  # 21 + 新社員 5（Master / GlobalMacroResearch / Equity / NewsDesk / UIDesk）
     for a in AGENTS:
         assert (AGENTS_DIR / a.file).exists(), a.file
         assert "PLAN" in system_prompt(a)

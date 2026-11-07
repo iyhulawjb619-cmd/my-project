@@ -45,6 +45,7 @@ ASSUMPTIONS: list[str] = [
     "PaperTrade 相当 dict（ImportResult.trades）側に持つ（storage.trade_history に列が無いため）。"
     "account_type='REAL_IMPORT' は 11 文字で storage の String(10) を超える → PostgreSQL では db/schema.sql の列幅拡張が必要（notes 参照）。",
     "pip 単位: 円ペア 0.01 / 非円ペア 0.0001（market_sessions.pip_size と同じ）。1 通貨あたり 1 pips = 0.01 円（円ペア）。",
+    "数量列: 100 未満の値は lots（1.0 = 10 万通貨、OANDA/MT5 レポート）、100 以上は通貨数（松井 FX）とみなす（Config.contract_size）。",
     "naive な時刻は JST として解釈する（Config.naive_tz）。tz 付きは JST に変換する。",
     "1 回の判断 = 同じ通貨ペア・同じ向きで、直前の約定から 30 分以内（Config.decision_window_min）の追加を 1 つにまとめる（連鎖）。",
     "保有区分: 30 分 / 4 時間 / 12 時間 / 24 時間（Config.hold_bins_min = (30, 240, 720, 1440)）。マトリクスの 3 区分は ≤30 分 / 30 分〜4h / 4h 超。",
@@ -513,7 +514,13 @@ def _read_rows(text: str) -> tuple[list[str], list[dict]]:
     delim = "\t" if "\t" in first else (";" if first.count(";") > first.count(",") else ",")
     reader = csv.reader(io.StringIO("\n".join(lines)), delimiter=delim)
     rows = list(reader)
-    headers = [h.strip() for h in rows[0]]
+    headers: list[str] = []
+    seen: dict[str, int] = defaultdict(int)
+    for h in rows[0]:
+        h = h.strip()
+        n = seen[h.lower()]
+        seen[h.lower()] += 1
+        headers.append(h if n == 0 else f"{h}.{n}")  # MT5 レポートの重複列（Time / Price が 2 回）は pandas 流に .1 を付ける
     out = []
     for r in rows[1:]:
         if not any(c.strip() for c in r):
@@ -648,7 +655,7 @@ def parse_execution_csv(text: str, mapping: dict[str, str] | None = None, source
             target.swap = swap
             target.exit_reason = str(g(row, "exit_reason") or "") or None
             if target.order_type is None:
-                target.order_type = None
+                target.order_type = str(g(row, "order_type") or "") or None
             target.stop_hit = infer_stop_hit(target)
             trades.append(target)
             pending[f"{symbol}|{target.direction}"] = [t for t in pending[f"{symbol}|{target.direction}"] if t is not target]
@@ -1301,64 +1308,63 @@ def equity_stats(trades: list[JournalTrade], current_balance: float | None, cfg:
 
 def drawdown_with_unrealized(trades: list[JournalTrade], bars: list[dict] | None, start_balance: float | None,
                              cfg: Config = DEFAULT_CONFIG) -> dict:
-    """最大 DD（含み損込み）。保有中の足の最悪値で評価。足が無い建玉は決済損益のみ（coverage を返す）。"""
+    """最大 DD（含み損込み）。保有中の各足で、決済済み累積 + 保有中建玉の最悪含み損（買いは安値・売りは高値）を資産曲線にする。
+
+    足が保有期間を覆わない建玉は決済損益のみで評価し、unrealized_coverage（足のあった建玉の割合）を返す。
+    足が無ければ含み損込みは None（未取得）。start_balance が無ければ % は None。
+    """
     closed = sorted([t for t in trades if t.net is not None and t.exit_dt is not None], key=lambda t: t.exit_timestamp)
-    sb = _sorted_bars(bars, cfg) if bars else []
-    points: list[tuple[datetime, float]] = []
-    covered = 0
-    for t in closed:
-        pts = [(t.exit_dt, t.net)]
-        if sb and _covers(sb, t.entry_dt, t.exit_dt, timedelta(minutes=_bar_minutes(sb))):
-            covered += 1
-            for bt, b in ((bt, b) for bt, b in sb if t.entry_dt <= bt <= t.exit_dt):
-                worst = float(b["low"]) if t.direction == "BUY" else float(b["high"])
-                unreal = (worst - t.entry_price) * t.sign * t.units
-                pts.append((bt, unreal))  # 暫定値（決済前）
-        points.append((t.exit_dt, t.net))
-        for bt, u in pts[1:]:
-            points.append((bt, ("U", t, u)))  # type: ignore[arg-type]
-    # 資産曲線: 決済済み累積 + 当時の含み損
-    realized_events = sorted(((t.exit_dt, t.net) for t in closed), key=lambda e: e[0])
-    unreal_events: list[tuple[datetime, JournalTrade, float]] = []
-    for t in closed:
-        if sb and _covers(sb, t.entry_dt, t.exit_dt, timedelta(minutes=_bar_minutes(sb))):
-            for bt, b in sb:
-                if t.entry_dt <= bt <= t.exit_dt:
-                    worst = float(b["low"]) if t.direction == "BUY" else float(b["high"])
-                    unreal_events.append((bt, t, (worst - t.entry_price) * t.sign * t.units))
     base = start_balance if start_balance is not None else 0.0
-    curve = [base]
-    timeline = sorted([(dt, "R", None, v) for dt, v in realized_events] + [(dt, "U", t, v) for dt, t, v in unreal_events],
-                      key=lambda e: (e[0], e[1]))
-    realized = base
-    open_unreal: dict[int, float] = {}
-    for dt, kind, t, v in timeline:
-        if kind == "R":
-            realized += v
-            curve.append(realized)
-        else:
-            open_unreal = {k: u for k, u in open_unreal.items() if True}
-            open_unreal[id(t)] = v
-            # 同時刻に保有している建玉の含み損を合算（決済済みは除く）
-            total_unreal = sum(u for k, u in open_unreal.items())
-            curve.append(realized + total_unreal)
-            if t.exit_dt <= dt:
-                open_unreal.pop(id(t), None)
-        # 決済済み建玉の含み損を落とす
-        open_unreal = {k: u for k, u in open_unreal.items()
-                       if any(id(tt) == k and tt.exit_dt > dt for tt in closed)}
-    mdd, mdd_pct = max_drawdown(curve) if curve else (0.0, 0.0)
     realized_curve = [base]
-    for _, v in realized_events:
-        realized_curve.append(realized_curve[-1] + v)
+    for t in closed:
+        realized_curve.append(realized_curve[-1] + t.net)
     r_mdd, r_mdd_pct = max_drawdown(realized_curve)
-    return {
-        "max_drawdown_closed": round(r_mdd, 2), "max_drawdown_closed_pct": round(r_mdd_pct, 2) if start_balance else None,
-        "max_drawdown_with_unrealized": round(mdd, 2) if sb else None,
-        "max_drawdown_with_unrealized_pct": (round(mdd_pct, 2) if (sb and start_balance) else None),
-        "unrealized_coverage": round(covered / len(closed), 3) if closed else None,
-        "note": "含み損込みは保有中の足の安値/高値で評価" if sb else "足が無いため含み損込みは未取得",
+    out = {
+        "max_drawdown_closed": round(r_mdd, 2),
+        "max_drawdown_closed_pct": round(r_mdd_pct, 2) if start_balance else None,
+        "max_drawdown_with_unrealized": None, "max_drawdown_with_unrealized_pct": None,
+        "unrealized_coverage": None, "note": "足が無いため含み損込みは未取得",
     }
+    sb = _sorted_bars(bars, cfg) if bars else []
+    if not sb or not closed:
+        if closed:
+            out["unrealized_coverage"] = 0.0
+        return out
+    slack = timedelta(minutes=_bar_minutes(sb))
+    covered = [t for t in closed if _covers(sb, t.entry_dt, t.exit_dt, slack)]
+    lo_t = min(t.entry_dt for t in covered) if covered else None
+    hi_t = max(t.exit_dt for t in covered) if covered else None
+    curve = [base]
+    exits = [(t.exit_dt, t.net) for t in closed]  # exit_timestamp 順
+    ei = 0
+    realized = base
+    for bt, b in sb:
+        if lo_t is None or bt < lo_t:
+            continue
+        if bt > hi_t:
+            break
+        while ei < len(exits) and exits[ei][0] <= bt:
+            realized += exits[ei][1]
+            curve.append(realized)
+            ei += 1
+        unreal = 0.0
+        for t in covered:
+            if t.entry_dt <= bt < t.exit_dt:
+                worst = float(b["low"]) if t.direction == "BUY" else float(b["high"])
+                unreal += (worst - t.entry_price) * t.sign * t.units
+        curve.append(realized + unreal)
+    while ei < len(exits):
+        realized += exits[ei][1]
+        curve.append(realized)
+        ei += 1
+    mdd, mdd_pct = max_drawdown(curve)
+    out.update({
+        "max_drawdown_with_unrealized": round(mdd, 2),
+        "max_drawdown_with_unrealized_pct": round(mdd_pct, 2) if start_balance else None,
+        "unrealized_coverage": round(len(covered) / len(closed), 3),
+        "note": "含み損込みは保有中の足の安値/高値で評価" + ("" if len(covered) == len(closed) else "（足の無い建玉は決済損益のみ）"),
+    })
+    return out
 
 
 # ----------------------------------------------------------------- 拡張 KPI
@@ -1437,7 +1443,7 @@ def extended_kpi(trades: list[JournalTrade], current_balance: float | None = Non
         notes.append("足データ無し: 事後値動き・含み損込み DD・値幅比（未設定分）は未取得")
     dd_pct = dd["max_drawdown_closed_pct"]
     dd_check = {"max_drawdown_pct": dd_pct, "levels": list(rules.dd_levels_pct),
-                "level": (next((f"{lv}%" for lv in sorted(rules.dd_levels_pct, reverse=True) if dd_pct is not None and dd_pct >= lv), "通常")
+                "level": (next((f"{lv:g}%" for lv in sorted(rules.dd_levels_pct, reverse=True) if dd_pct is not None and dd_pct >= lv), "通常")
                           if rules.dd_levels_pct else None),
                 "circuit_half_pct": rules.circuit_half_pct, "circuit_stop_pct": rules.circuit_stop_pct,
                 "circuit_half_hit": (dd_pct is not None and rules.circuit_half_pct is not None and dd_pct >= -rules.circuit_half_pct),
@@ -1849,15 +1855,32 @@ def analyze_scene(scene_id: str, trades: list[JournalTrade], balance: float | No
                          next_action, net, len(ts))
 
 
+def analyze_scenes(scenes: list[dict], balance: float | None = None, cfg: Config = DEFAULT_CONFIG) -> list[dict]:
+    """場面の配列 [{scene_id, trades: [JournalTrade | dict], stop_candidate?, bars?, range_ratio?}] → SceneAnalysis.as_dict() の配列。"""
+    out = []
+    for sc in scenes:
+        trs = [t if isinstance(t, JournalTrade) else JournalTrade.from_dict(t) for t in sc.get("trades", [])]
+        if not trs:
+            out.append({"scene_id": sc.get("scene_id"), "status": INSUFFICIENT_DATA})
+            continue
+        out.append(analyze_scene(str(sc.get("scene_id", len(out) + 1)), trs, sc.get("balance", balance),
+                                 sc.get("stop_candidate"), sc.get("bars"), sc.get("range_ratio"), cfg).as_dict())
+    return out
+
+
 # ----------------------------------------------------------------- 場面チャート（入る前まで / 結果まで）
 
-def _bar_key(ts: str) -> str:
-    return str(ts)[:16]
+def _bar_key(ts: str | datetime) -> str:
+    """足 / 約定の対応キー = JST の先頭 16 文字 'YYYY-MM-DD HH:MM'（解釈できない文字列はそのまま先頭 16 文字）。"""
+    dt = _dt(ts)
+    if dt is not None:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    return str(ts).replace("T", " ")[:16]
 
 
 def _bar_key_norm(b: dict | list) -> str:
     t = b[0] if isinstance(b, (list, tuple)) else b["timestamp"]
-    return _bar_key(str(t).replace("T", " "))
+    return _bar_key(t)
 
 
 def _ohlc(b: dict | list) -> tuple[str, float, float, float, float]:
@@ -1868,7 +1891,7 @@ def _ohlc(b: dict | list) -> tuple[str, float, float, float, float]:
 
 def cut_before(bars: list, first_key: str, min_bars: int = 10) -> int:
     """『入る前まで』の切り出し本数: bars[i] > first_key となる最初の i について max(0, i−1)、さらに max(cut, 10)。"""
-    fk = _bar_key(str(first_key).replace("T", " "))
+    fk = _bar_key(first_key)
     cut = len(bars)
     for i, b in enumerate(bars):
         if _bar_key_norm(b) > fk:
@@ -1942,7 +1965,7 @@ def scene_chart_spec(bars: list, trades: list[JournalTrade | dict] | None = None
     keys = [_ohlc(b)[0] for b in bars]
 
     def idx_of(t: str) -> int:
-        k = _bar_key(str(t).replace("T", " "))
+        k = _bar_key(t)
         r = -1
         for i, bk in enumerate(keys):
             if bk <= k:
@@ -1957,7 +1980,7 @@ def scene_chart_spec(bars: list, trades: list[JournalTrade | dict] | None = None
         for r in trs:
             i = idx_of(r["et"])
             if i >= 0:
-                buy = r["dir"] == "L"
+                buy = str(r["dir"]).upper() in ("L", "BUY", "買", "買い", "LONG")
                 o = seen[i]
                 seen[i] += 1
                 x, y = X(i), Y(r["ep"])
@@ -1970,7 +1993,7 @@ def scene_chart_spec(bars: list, trades: list[JournalTrade | dict] | None = None
                     markers.append({"kind": "決済", "symbol": "◆", "x": X(j), "y": Y(float(r["xp"])), "i": j, "label": f"決済 {float(r['xp']):.3f}"})
     return {
         "status": "OK", "mode": mode, "viewBox": f"0 0 {W} {H}", "margins": {"L": L, "R": R, "T": T, "B": B},
-        "cut": cut, "visible_bars": len(vb), "total_bars": len(bars), "first_key": _bar_key(str(first_key).replace("T", " ")),
+        "cut": cut, "visible_bars": len(vb), "total_bars": len(bars), "first_key": _bar_key(first_key),
         "y_lo": round(lo, 4), "y_hi": round(hi, 4), "tick": tick, "ticks": ticks, "levels": lv_out, "candles": candles,
         "time_ticks": time_ticks, "markers": markers,
         "caption": "ここまでの情報で、入る前の 5 つの問いに答えてください" if mode == "before" else None,

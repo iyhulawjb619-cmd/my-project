@@ -106,6 +106,63 @@ reports = Table(
 )
 
 
+# ------------------------------------------------------------------ 拡張テーブル（すべて追記専用）
+# 状態の変化は新しい行で表す（例: user_positions は register / close のイベント行）。
+
+user_positions = Table(
+    "user_positions", metadata, _id(),
+    Column("event", String(10)),  # register | close
+    Column("position_id", String(40), index=True), Column("symbol", String(20)), Column("direction", String(4)),
+    Column("units", Float), Column("entry", Float), Column("sl", Float), Column("tp", Float),
+    Column("opened_at", String(40)), Column("closed_at", String(40)), Column("exit_price", Float),
+    Column("note", Text), Column("payload_json", Text), _created(),
+)
+
+notifications = Table(
+    "notifications", metadata, _id(),
+    Column("key", String(200), index=True), Column("code", String(30)), Column("text", Text),
+    Column("severity", String(10)), Column("at", String(40)), Column("position_id", String(40)),
+    Column("suppressed", Integer), Column("suppressed_reason", Text), Column("payload_json", Text), _created(),
+)
+
+level_watch = Table(
+    "level_watch", metadata, _id(),
+    Column("version_id", String(40), index=True), Column("symbol", String(20)), Column("report_kind", String(20)),
+    Column("watch_created_at", String(40)), Column("current", Float), Column("atr", Float),
+    Column("range_low", Float), Column("range_high", Float), Column("payload_json", Text), _created(),
+)
+
+calendar_events = Table(
+    "calendar_events", metadata, _id(),
+    Column("batch_id", String(40), index=True), Column("fetched_at", String(40)), Column("event_id", String(80)),
+    Column("date_jst", String(40)), Column("date_utc", String(40)), Column("country", String(10)),
+    Column("title", Text), Column("title_ja", Text), Column("importance", Integer), Column("forecast", Float),
+    Column("previous", Float), Column("actual", Float), Column("unit", String(20)), Column("rank", String(2)),
+    Column("source", String(40)), Column("payload_json", Text), _created(),
+)
+
+news_items = Table(
+    "news_items", metadata, _id(),
+    Column("batch_id", String(40), index=True), Column("fetched_at", String(40)), Column("item_id", String(80)),
+    Column("title", Text), Column("provider", String(80)), Column("published_jst", String(40)),
+    Column("urgency", Integer), Column("link", Text), Column("tags", Text), Column("payload_json", Text), _created(),
+)
+
+macro_series = Table(
+    "macro_series", metadata, _id(),
+    Column("symbol", String(20), index=True), Column("timestamp", String(40)), Column("value", Float),
+    Column("close", Float), Column("open", Float), Column("high", Float), Column("low", Float),
+    Column("source", String(40)), Column("unit", String(20)), Column("payload_json", Text), _created(),
+)
+
+predictions = Table(
+    "predictions", metadata, _id(),
+    Column("prediction_id", String(40), index=True), Column("symbol", String(20)), Column("kind", String(30)),
+    Column("made_at", String(40)), Column("deadline", String(40)), Column("text", Text),
+    Column("verdict", String(10)), Column("payload_json", Text), _created(),
+)
+
+
 def _ts() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -235,3 +292,115 @@ class Repository:
 
     def improvement(self, proposal_id: str) -> list[dict]:
         return self._select(improvement_history, improvement_history.c.proposal_id == proposal_id, order_desc=False)
+
+    # --- 拡張テーブル: writes（INSERT のみ）
+    def save_position_event(self, row: dict) -> int:
+        """user_positions にイベント行（event='register'|'close'）を追記する。解除も行の追加で表す。"""
+        payload = {k: v for k, v in row.items() if k not in user_positions.c}
+        cols = {k: v for k, v in row.items() if k in user_positions.c and k != "payload_json"}
+        cols.setdefault("event", "register")
+        return self._insert(user_positions, cols | {"payload_json": json.dumps(payload, ensure_ascii=False, default=str)})
+
+    def save_notification(self, row: dict) -> int:
+        payload = {k: v for k, v in row.items() if k not in notifications.c}
+        cols = {k: v for k, v in row.items() if k in notifications.c and k != "payload_json"}
+        if "suppressed" in cols:
+            cols["suppressed"] = int(bool(cols["suppressed"]))
+        return self._insert(notifications, cols | {"payload_json": json.dumps(payload, ensure_ascii=False, default=str)})
+
+    def save_level_watch(self, row: dict) -> int:
+        payload = {k: v for k, v in row.items() if k not in level_watch.c}
+        cols = {k: v for k, v in row.items() if k in level_watch.c and k != "payload_json"}
+        return self._insert(level_watch, cols | {"payload_json": json.dumps(payload, ensure_ascii=False, default=str)})
+
+    def save_calendar_events(self, events: list[dict], fetched_at: str | None = None, batch_id: str | None = None) -> int:
+        """1 回の取得分をまとめて追記する（同じ batch_id）。戻り値は追記件数。"""
+        fetched_at = fetched_at or _ts()
+        batch_id = batch_id or fetched_at
+        n = 0
+        for e in events:
+            cols = {k: e.get(k) for k in ("date_jst", "date_utc", "country", "title", "title_ja", "importance",
+                                          "forecast", "previous", "actual", "unit", "rank", "source")}
+            cols["event_id"] = str(e.get("id") or e.get("event_id") or "") or None
+            self._insert(calendar_events, cols | {"batch_id": batch_id, "fetched_at": fetched_at,
+                                                  "payload_json": json.dumps(e, ensure_ascii=False, default=str)})
+            n += 1
+        return n
+
+    def save_news_items(self, items: list[dict], fetched_at: str | None = None, batch_id: str | None = None) -> int:
+        fetched_at = fetched_at or _ts()
+        batch_id = batch_id or fetched_at
+        n = 0
+        for it in items:
+            tags = it.get("tags")
+            cols = {"item_id": str(it.get("id") or it.get("item_id") or "") or None, "title": it.get("title"),
+                    "provider": it.get("provider") or it.get("source"), "published_jst": it.get("published_jst") or it.get("time"),
+                    "urgency": it.get("urgency"), "link": it.get("link") or it.get("url"),
+                    "tags": ",".join(tags) if isinstance(tags, (list, tuple)) else tags}
+            self._insert(news_items, cols | {"batch_id": batch_id, "fetched_at": fetched_at,
+                                             "payload_json": json.dumps(it, ensure_ascii=False, default=str)})
+            n += 1
+        return n
+
+    def save_macro_point(self, row: dict) -> int:
+        """非 FX 日次系列（US10Y, NIKKEI, WTI …）の 1 点。value と close は同じ値を持つ（storage.bars 互換）。"""
+        payload = {k: v for k, v in row.items() if k not in macro_series.c}
+        cols = {k: v for k, v in row.items() if k in macro_series.c and k != "payload_json"}
+        if cols.get("value") is None and cols.get("close") is not None:
+            cols["value"] = cols["close"]
+        if cols.get("close") is None and cols.get("value") is not None:
+            cols["close"] = cols["value"]
+        return self._insert(macro_series, cols | {"payload_json": json.dumps(payload, ensure_ascii=False, default=str)})
+
+    def save_prediction(self, row: dict) -> int:
+        """読み（予測）を残す。結果は別の行（同じ prediction_id, verdict 付き）で追記する。"""
+        payload = {k: v for k, v in row.items() if k not in predictions.c}
+        cols = {k: v for k, v in row.items() if k in predictions.c and k != "payload_json"}
+        return self._insert(predictions, cols | {"payload_json": json.dumps(payload, ensure_ascii=False, default=str)})
+
+    # --- 拡張テーブル: reads
+    def position_events(self, symbol: str | None = None) -> list[dict]:
+        """時系列順の全イベント行。現在の建玉は guards.positions_from_events で復元する。"""
+        where = [user_positions.c.symbol == symbol] if symbol else []
+        return self._select(user_positions, *where, order_desc=False)
+
+    def list_notifications(self, limit: int | None = 200) -> list[dict]:
+        return self._select(notifications, limit=limit)
+
+    def list_level_watches(self, symbol: str | None = None, limit: int | None = None) -> list[dict]:
+        where = [level_watch.c.symbol == symbol] if symbol else []
+        return self._select(level_watch, *where, limit=limit)
+
+    def latest_calendar_events(self) -> list[dict]:
+        """最新 batch の行（date_jst 昇順）。無ければ []（= 未取得）。"""
+        rows = self._select(calendar_events, limit=1)
+        if not rows:
+            return []
+        batch = self._select(calendar_events, calendar_events.c.batch_id == rows[0]["batch_id"], order_desc=False)
+        return sorted(batch, key=lambda r: r.get("date_jst") or "")
+
+    def list_calendar_events(self, limit: int | None = None) -> list[dict]:
+        return self._select(calendar_events, limit=limit)
+
+    def latest_news_items(self, limit: int = 50) -> list[dict]:
+        return self._select(news_items, limit=limit)
+
+    def macro_symbols(self) -> list[str]:
+        with self.engine.connect() as conn:
+            return [r[0] for r in conn.execute(select(macro_series.c.symbol).distinct())]
+
+    def macro_rows(self, symbol: str, limit: int | None = None) -> list[dict]:
+        """時系列順。同一 timestamp は後から追記された行を正とする（market_data と同じ規則）。"""
+        rows = self._select(macro_series, macro_series.c.symbol == symbol, order_desc=False)
+        latest: dict[str, dict] = {}
+        for r in rows:
+            latest[r["timestamp"]] = r
+        out = sorted(latest.values(), key=lambda r: r["timestamp"])
+        return out[-limit:] if limit else out
+
+    def list_predictions(self, symbol: str | None = None, limit: int | None = None) -> list[dict]:
+        where = [predictions.c.symbol == symbol] if symbol else []
+        return self._select(predictions, *where, limit=limit)
+
+    def reports_of(self, kind: str, limit: int | None = 20) -> list[dict]:
+        return self._select(reports, reports.c.kind == kind, limit=limit)

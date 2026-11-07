@@ -8,12 +8,15 @@ import hmac
 import json
 from functools import lru_cache
 
-from fastapi import BackgroundTasks, Body, Depends, FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse
+from typing import Any
+
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import improvement, services
-from .config import Settings, load_settings
+from . import improvement, integration, services
+from .config import BASE_DIR, Settings, load_settings
 from .engine import DecisionEngine
 from .execution import ExecutionDisabledError, MT5Bridge
 from .kpi import Trade, compute_kpi
@@ -22,7 +25,12 @@ from .models import AgentReport, AnalysisRequest, CEODecision, TradingSignal, Tr
 from .reports import render_agent, render_ceo
 from .storage import Repository
 
-app = FastAPI(title="ISHIBASHI AI HEDGE FUND OS", version="1.0.0")
+app = FastAPI(title="ISHIBASHI AI HEDGE FUND OS", version="1.1.0")
+
+# マスター ダッシュボード（app/ui/index.html）。相対パス fetch のため /ui → /ui/ にリダイレクトする。
+UI_DIR = BASE_DIR / "app" / "ui"
+if UI_DIR.is_dir():
+    app.mount("/ui", StaticFiles(directory=str(UI_DIR), html=True), name="ui")
 
 
 @lru_cache
@@ -201,3 +209,192 @@ def execute(signal: TradingSignal, lot: float, s: Settings = Depends(get_setting
     except ExecutionDisabledError as e:
         raise HTTPException(status_code=403, detail=str(e))
     raise HTTPException(status_code=500, detail="unreachable")
+
+
+# =====================================================================================
+# v1.1 統合: 定時レポート / 取込 / 分析シート / 建玉ガード / 水準 / ルーティン / UI
+# すべて PLAN モード（分析・記録・提案のみ）。データ不足は 200 で INSUFFICIENT DATA を含む JSON を返す。
+# =====================================================================================
+
+SESSION_KINDS = ("tokyo", "europe", "ny", "weekly")
+
+
+def _kind(kind: str) -> str:
+    k = kind.lower()
+    if k not in SESSION_KINDS:
+        raise HTTPException(400, f"kind は {'|'.join(SESSION_KINDS)} のいずれか")
+    return k
+
+
+@app.get("/ui", include_in_schema=False)
+def ui_redirect():
+    return RedirectResponse(url="/ui/")
+
+
+@app.post("/reports/session")
+def session_report(kind: str = "tokyo", now: str | None = None, profile: str = "directive", save: bool = True,
+                   format: str = "json", s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo)):
+    """DB の保存データから ReportInputs を組み、session_report を生成して reports(kind=session_<kind>) に追記する。
+    format=text|html で本文だけを返す。"""
+    out = integration.session_report_payload(repo, s, _kind(kind), now, profile, save)
+    if format == "text":
+        return PlainTextResponse(out["text"])
+    if format == "html":
+        return HTMLResponse(out["html"])
+    return out
+
+
+@app.post("/calendar/import")
+async def calendar_import(request: Request, fetched_at: str | None = None, repo: Repository = Depends(get_repo)):
+    """TradingView 経済カレンダー JSON（{'result': [...]} / 配列）または CSV テキストを取り込む。"""
+    body = await request.body()
+    text = body.decode("utf-8-sig")
+    payload: Any = json.loads(text) if text.lstrip().startswith(("{", "[")) else text
+    return integration.import_calendar(repo, payload, fetched_at)
+
+
+@app.post("/news/import")
+async def news_import(request: Request, fetched_at: str | None = None, repo: Repository = Depends(get_repo)):
+    """TradingView get_news 返却、または [{title, time|published, source|provider}] を取り込む。"""
+    payload = json.loads((await request.body()).decode("utf-8-sig") or "[]")
+    return integration.import_news(repo, payload, fetched_at)
+
+
+@app.post("/macro/import")
+async def macro_import(request: Request, symbol: str, source: str | None = None, unit: str | None = None,
+                       repo: Repository = Depends(get_repo)):
+    """非 FX 日次系列（US10Y / NIKKEI / WTI …）。JSON 配列 [{date, value}] / TradingView OHLCV / CSV 'date,value'。"""
+    text = (await request.body()).decode("utf-8-sig")
+    payload: Any = json.loads(text) if text.lstrip().startswith(("{", "[")) else text
+    return integration.import_macro(repo, symbol, payload, source, unit)
+
+
+@app.post("/trades/import")
+def trades_import(csv: str = Body(..., media_type="text/csv"), source_id: str | None = None,
+                  symbol: str = "USDJPY", repo: Repository = Depends(get_repo)):
+    """約定 CSV（松井 / OANDA / MT5）→ trade_history に追記（重複はスキップ）。"""
+    try:
+        return integration.import_trades(repo, csv, source_id=source_id, default_symbol=symbol)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/pre-entry")
+def pre_entry(body: dict = Body(...), profile: str | None = None, save: bool = True,
+              repo: Repository = Depends(get_repo)):
+    """入る前の分析シート（pre_entry.PreEntryInput の JSON）。両プロファイルの値を返し、5 行記録を reports に追記する。"""
+    try:
+        return integration.pre_entry_payload(repo, body, profile, save)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/positions/register")
+def positions_register(body: dict = Body(...), repo: Repository = Depends(get_repo)):
+    """ユーザーが自分で建てた建玉を『登録』する（口座には触れない。ガード評価の対象にするだけ）。"""
+    return integration.register_position(repo, body)
+
+
+@app.post("/positions/close")
+def positions_close(body: dict = Body(...), repo: Repository = Depends(get_repo)):
+    """登録の『解除』をイベント行として追記する（決済はユーザーが口座側で行う）。"""
+    out = integration.close_position(repo, body)
+    if "error" in out:
+        raise HTTPException(400, out["error"])
+    return out
+
+
+@app.get("/positions")
+def positions_list(repo: Repository = Depends(get_repo)):
+    return {"positions": [integration.as_plain(p) for p in integration.positions(repo)],
+            "events": len(repo.position_events()), "footer": integration.PLAN_FOOTER}
+
+
+@app.get("/guards")
+def guards(now: str | None = None, profile: str = "directive", symbol: str = "USDJPY",
+           s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo)):
+    return integration.guards_payload(repo, s, now, profile, symbol)
+
+
+@app.get("/levels")
+def levels(symbol: str = "USDJPY", now: str | None = None, profile: str = "directive",
+           repo: Repository = Depends(get_repo)):
+    return integration.levels_payload(repo, symbol, now, profile)
+
+
+@app.get("/event-windows")
+def event_windows(now: str | None = None, profile: str = "directive", repo: Repository = Depends(get_repo)):
+    return integration.event_windows_payload(repo, now, profile)
+
+
+@app.get("/calendar/upcoming")
+def calendar_upcoming(now: str | None = None, repo: Repository = Depends(get_repo)):
+    return integration.calendar_upcoming(repo, now)
+
+
+@app.get("/news/latest")
+def news_latest(limit: int = 30, repo: Repository = Depends(get_repo)):
+    return integration.news_latest(repo, limit)
+
+
+@app.get("/macro/latest")
+def macro_latest(now: str | None = None, repo: Repository = Depends(get_repo)):
+    return integration.macro_latest(repo, now)
+
+
+@app.get("/anomaly")
+def anomaly(now: str | None = None, profile: str = "directive", repo: Repository = Depends(get_repo)):
+    return integration.anomaly_payload(repo, now, profile)
+
+
+@app.get("/strength")
+def strength(now: str | None = None, variant: str | None = None, profile: str = "directive",
+             repo: Repository = Depends(get_repo)):
+    return integration.strength_payload(repo, now, variant, profile)
+
+
+@app.get("/discipline/weekly")
+def discipline_weekly(week: str | None = None, profile: str = "directive", s: Settings = Depends(get_settings),
+                      repo: Repository = Depends(get_repo)):
+    return integration.discipline_weekly(repo, s, week, profile)
+
+
+@app.get("/discipline/monthly")
+def discipline_monthly(period: str | None = None, profile: str = "directive", s: Settings = Depends(get_settings),
+                       repo: Repository = Depends(get_repo)):
+    return integration.discipline_monthly(repo, s, period, profile)
+
+
+@app.get("/zstats")
+def zstats(symbol: str = "USDJPY", now: str | None = None, profile: str = "directive",
+           repo: Repository = Depends(get_repo)):
+    return integration.zstats_payload(repo, symbol, now, profile)
+
+
+@app.get("/f4")
+def f4(symbol: str = "USDJPY", now: str | None = None, profile: str = "directive",
+       s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo)):
+    return integration.f4_payload(repo, s, symbol, now, profile)
+
+
+@app.post("/sizing")
+def sizing(body: dict = Body(default_factory=dict), s: Settings = Depends(get_settings)):
+    """{balance?, price?, stop_pips?, tp_pips?, profile?} → 通貨数・合計上限・証拠金上限・推奨損失額（両プロファイル）。"""
+    return integration.sizing_payload(s, body)
+
+
+@app.get("/routine/daily")
+def routine_daily(now: str | None = None, symbol: str = "USDJPY", profile: str = "directive",
+                  s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo)):
+    return integration.routine_daily(repo, s, now, symbol, profile)
+
+
+class AskIn(BaseModel):
+    question: str
+    symbol: str = "USDJPY"
+
+
+@app.post("/ask")
+def ask(body: AskIn, engine: DecisionEngine = Depends(get_engine)):
+    """質問を context['common'] に入れて 1 サイクル回し、Master 向けの短い要約を返す（offline では CEO レポートの要約）。"""
+    return integration.ask(engine, body.question, body.symbol)

@@ -46,6 +46,12 @@ AGENTS: tuple[AgentSpec, ...] = (
     AgentSpec("memory", "Memory Agent", "Memory.md", 4, 7, False),
     AgentSpec("research", "Research Agent", "Research.md", 4, 9, False),
     AgentSpec("execution", "Execution Agent", "Execution.md", 5, 10, False),
+    # 新社員（v1.1）: Master は窓口（Level 0）で合議に参加しない。GlobalMacroResearch / Equity は STEP1 の票を持つ。
+    AgentSpec("master", "Master", "Master.md", 0, 11, False),
+    AgentSpec("global_macro_research", "Global Macro Research Agent", "GlobalMacroResearch.md", 3, 1, True),
+    AgentSpec("equity", "Equity Agent", "Equity.md", 3, 1, True),
+    AgentSpec("news_desk", "News Desk Agent", "NewsDesk.md", 3, 1, False),
+    AgentSpec("ui_desk", "UI Desk Agent", "UIDesk.md", 4, 12, False),
 )
 
 BY_KEY = {a.key: a for a in AGENTS}
@@ -89,4 +95,7 @@ OUTPUT_INSTRUCTIONS = """\
 - 入力に判断材料が無い・不足している場合は推測・捏造をせず、
   decision=WAIT, confidence=0, reasoning="INSUFFICIENT DATA: <不足している情報>" を返すこと。
 - 現在は PLAN モード。発注・口座操作・ポジション変更を示唆・実行してはならない。分析と提案のみ行う。
+- すべての出力（reasoning・details・レポート本文）の末尾に定型文「PLANモードのため実発注は行いません」を付けること。
 """
+
+PLAN_FOOTER = "PLANモードのため実発注は行いません"
