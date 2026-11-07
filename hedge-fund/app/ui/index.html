@@ -458,6 +458,13 @@ function setSb(key, cls, note) {
 function setStatus(id, s) { const el = $(id); if (el) el.textContent = s; }
 
 async function api(path, { method = 'GET', body = null, timeout = TIMEOUT_MS, raw = false } = {}) {
+  // スナップショット表示（python -m app.snapshot が埋め込んだ API 応答。サーバー無しで開ける）
+  if (window.__SNAPSHOT__) {
+    const snap = window.__SNAPSHOT__.responses || {};
+    const hit = method === 'GET' ? (snap[path] ?? snap[path.split('?')[0]]) : undefined;
+    if (hit !== undefined) return { ok: true, status: 200, data: hit };
+    return { ok: false, status: 404, data: null, error: method === 'GET' ? 'スナップショットに無し' : 'スナップショットでは質問できません' };
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   try {

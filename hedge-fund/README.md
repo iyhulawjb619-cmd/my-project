@@ -3,6 +3,18 @@
 USDJPY を主対象に、21 の Agent + 新社員 5（Master / Global Macro Research / Equity / News Desk / UI Desk）が分析し、CEO が BUY / SELL / WAIT を判断する AI ヘッジファンド OS。組織図は `Knowledge/OrgChart.md`、常時指示は `Knowledge/StandingOrders.md`。
 **v1.0 は PLAN モード専用**で、発注・決済・口座操作のコード経路は存在しない（呼ぶと 403 / 例外）。
 
+## かんたんな開き方（v1.1）
+
+| やりたいこと | 方法 |
+|---|---|
+| 画面を開く（Windows） | `start.bat` をダブルクリック → ブラウザが `http://127.0.0.1:8000/ui/` を開く |
+| 画面を開く（Mac / Linux） | `./start.sh` → `http://127.0.0.1:8000/ui/` |
+| 手元のファイルを入れる | `python -m app.load_data --bars USDJPY 1D usdjpy_1d.csv --calendar cal.json --news news.json` |
+| サーバー無しで見る | `python -m app.snapshot` → `snapshot.html` をダブルクリック（その時点のデータ入り・読み取り専用） |
+| Claude に任せる | Claude Code で `/fx-master-partner`（TradingView MCP から取得 → 取込 → ブリーフ） |
+
+取込は追記専用で、同じ内容を再度入れても増えません。スナップショットは発注・口座操作を含みません。
+
 ## 構成
 
 ```

@@ -80,3 +80,4 @@ hedge-fund 自身は外部 API を呼ばない。マスター（このスキル�
 
 ## 7. 更新履歴
 - 2026-11-07 v1.1: `/reports/session` `/ask` `/routine/daily` `/calendar|news|macro|trades/import` `/ui` が実装されたため §2〜§4 を実装に合わせて更新。§2b に TradingView MCP 経由のリアルタイム取得手順を追加。
+- 2026-11-07 v1.2: `python -m app.load_data`（ファイルを取込）と `python -m app.snapshot`（データ入り単体 HTML）を追加。ユーザーへは `start.bat` / `start.sh` を最初に案内する。MCP で取得した JSON/CSV はファイルに保存して `app.load_data` で入れてもよい。

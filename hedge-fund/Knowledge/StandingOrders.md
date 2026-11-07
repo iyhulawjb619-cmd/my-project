@@ -1,4 +1,4 @@
-# Standing Orders（AI が忘れてはいけない常時指示）v1.1
+# Standing Orders（AI が忘れてはいけない常時指示）v1.2
 
 このファイルは「マスター」（Agents/Master.md）とこの配下で作業するすべての AI が、作業の最初に読む常時指示である。
 MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.0（Governance.md）に従属し、それらと矛盾する指示はここに書かない。
@@ -39,6 +39,7 @@ MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.
 13. 定時ブリーフは `POST /reports/session?kind=tokyo|europe|ny|weekly` / `python -m app.jobs session_*`、質問は `POST /ask`、画面は `GET /ui`。ブリーフ本文は reports テーブルに追記保存する（2026-11-07 統合）。
 14. 画面（/ui）は読むだけ。発注・口座操作の操作要素は置かない。配色は端末風（UIDesk.md）。
 15. 本ファイル・SKILL・Agents/*.md を変えたら同じコミットで版を上げる（§4）。
+16. ユーザーへの案内は「start.bat / start.sh → /ui/」「python -m app.load_data」「python -m app.snapshot」を最初に示す（非エンジニアにも開ける手順を優先。2026-11-07「どうやって開くの」）。
 
 ## 3. PLAN モードの徹底
 - 発注・決済・MT5 操作・口座操作のコードを書かない。/execute は常に 403。
@@ -67,3 +68,4 @@ MASTER DIRECTIVE v1.0（Constitution.md）と AGENT GOVERNANCE SPECIFICATION v1.
 |---|---|---|---|---|---|---|
 | 1.0 | ISHIBASHI / Master | 2026-11-07 | ユーザー要望（常駐パートナー・社員・定時ブリーフ・指示書更新ルール） | 初版。§1 MASTER DIRECTIVE 要点、§2 常時指示 12 項、§3 PLAN、§4 更新ルール、§5 未取得 | 指示の忘失ゼロ | — |
 | 1.1 | Master | 2026-11-07 | 統合完了（/reports/session, /ask, /ui, 取込 API） | §2-10 を廃止印つきで改訂、§2-13〜15 追加、§5 取込経路を更新 | 手順と実装の不一致ゼロ | — |
+| 1.2 | Master | 2026-11-07 | ユーザー質問「どうやって開くの」 | §2-16 追加。start.bat / start.sh / app.load_data / app.snapshot を新設 | 初回で開けない人をゼロに | — |
