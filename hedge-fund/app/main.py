@@ -8,11 +8,11 @@ import hmac
 import json
 from functools import lru_cache
 
-from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from . import improvement
+from . import improvement, services
 from .config import Settings, load_settings
 from .engine import DecisionEngine
 from .execution import ExecutionDisabledError, MT5Bridge
@@ -97,6 +97,7 @@ class PaperTrade(BaseModel):
     lot: float
     profit_loss: float
     cycle_id: str | None = None
+    strategy: str | None = None
 
 
 @app.post("/trades")
@@ -116,9 +117,58 @@ def kpi(s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo
 
 
 @app.post("/reports/weekly")
-def weekly(period: str, engine: DecisionEngine = Depends(get_engine)):
+def weekly(period: str, engine: DecisionEngine = Depends(get_engine), s: Settings = Depends(get_settings),
+           repo: Repository = Depends(get_repo)):
+    """例: period=2026-W45。KPI → Learning Agent（提案のみ）→ 週次レポート保存。"""
     stats, report = engine.run_learning(period)
-    return {"period": period, "statistics": stats, "learning": report.model_dump()}
+    out = services.weekly(repo, s, period, report)
+    return {**out, "statistics": stats, "learning": report.model_dump()}
+
+
+@app.post("/reports/daily")
+def daily(day: str | None = None, repo: Repository = Depends(get_repo)):
+    return services.daily(repo, day)
+
+
+@app.post("/reports/monthly")
+def monthly(period: str, s: Settings = Depends(get_settings), repo: Repository = Depends(get_repo)):
+    """例: period=2026-11。CEO の月次評価。"""
+    return services.monthly(repo, s, period)
+
+
+@app.get("/reports/{kind}/latest", response_class=PlainTextResponse)
+def latest_report(kind: str, repo: Repository = Depends(get_repo)):
+    row = repo.latest_report(kind)
+    if row is None:
+        raise HTTPException(404, f"no {kind} report yet")
+    return row["body"]
+
+
+@app.post("/market-data/import")
+def import_market_data(symbol: str, timeframe: str, csv: str = Body(..., media_type="text/csv"),
+                       repo: Repository = Depends(get_repo)):
+    """TradingView / MT5 の CSV エクスポートを取り込み、RSI/MACD/ATR/ADX/EMA/SMA を計算して保存する。"""
+    try:
+        return services.import_csv(repo, symbol, timeframe, csv)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/market-data")
+def market_data(symbol: str = "USDJPY", bars: int = 30, repo: Repository = Depends(get_repo)):
+    return services.multi_timeframe(repo, symbol, bars)
+
+
+@app.post("/backtest")
+def run_backtest(symbol: str = "USDJPY", timeframe: str = "1H", s: Settings = Depends(get_settings),
+                 repo: Repository = Depends(get_repo)):
+    """全戦略をバックテストし Alpha Ranking を作成する（提案のみ）。"""
+    return services.run_backtest(repo, s, symbol, timeframe)
+
+
+@app.post("/agents/evaluate")
+def evaluate_agents(repo: Repository = Depends(get_repo)):
+    return services.agent_ranking(repo)
 
 
 class ImprovementIn(BaseModel):

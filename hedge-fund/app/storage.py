@@ -55,7 +55,8 @@ trade_history = Table(
     Column("timestamp", String(40)), Column("symbol", String(20)), Column("direction", String(4)),
     Column("entry_price", Float), Column("exit_price", Float), Column("stop_loss", Float),
     Column("take_profit", Float), Column("lot", Float), Column("profit_loss", Float), Column("rr", Float),
-    Column("result", String(10)), Column("cycle_id", String(40)), Column("account_type", String(10)), _created(),
+    Column("result", String(10)), Column("cycle_id", String(40)), Column("account_type", String(10)),
+    Column("strategy", String(40)), _created(),
 )
 
 learning_results = Table(
@@ -95,6 +96,13 @@ version_control = Table(
     Column("version", String(20)), Column("author", String(60)), Column("date", String(40)),
     Column("reason", Text), Column("changes", Text), Column("expected_impact", Text),
     Column("actual_impact", Text), _created(),
+)
+
+
+reports = Table(
+    "reports", metadata, _id(),
+    Column("kind", String(20), index=True), Column("period", String(20)), Column("body", Text),
+    Column("payload_json", Text), _created(),
 )
 
 
@@ -172,10 +180,45 @@ class Repository:
     def save_version(self, row: dict) -> int:
         return self._insert(version_control, row)
 
+    def save_report(self, kind: str, period: str, body: str, payload: dict) -> int:
+        return self._insert(reports, dict(kind=kind, period=period, body=body,
+                                          payload_json=json.dumps(payload, ensure_ascii=False, default=str)))
+
     # --- reads
     def recent_market_data(self, symbol: str, limit: int = 50) -> list[dict]:
         rows = self._select(market_data, market_data.c.symbol == symbol, limit=limit)
         return list(reversed(rows))
+
+    def timeframes(self, symbol: str) -> list[str]:
+        with self.engine.connect() as conn:
+            stmt = select(market_data.c.timeframe).where(market_data.c.symbol == symbol).distinct()
+            return [r[0] for r in conn.execute(stmt)]
+
+    def bars(self, symbol: str, timeframe: str, limit: int | None = None) -> list[dict]:
+        """時系列順（古い→新しい）。同一 timestamp は後から追記された行を正とする。"""
+        rows = self._select(market_data, market_data.c.symbol == symbol, market_data.c.timeframe == timeframe,
+                            order_desc=False)
+        latest: dict[str, dict] = {}
+        for r in rows:
+            latest[r["timestamp"]] = r
+        out = sorted(latest.values(), key=lambda r: r["timestamp"])
+        return out[-limit:] if limit else out
+
+    def all_agent_reports(self) -> list[dict]:
+        return self._select(agent_analysis, order_desc=False)
+
+    def learning(self, limit: int = 20) -> list[dict]:
+        return self._select(learning_results, limit=limit)
+
+    def research(self, limit: int = 20) -> list[dict]:
+        return self._select(research_projects, limit=limit)
+
+    def improvements(self) -> list[dict]:
+        return self._select(improvement_history, order_desc=False)
+
+    def latest_report(self, kind: str) -> dict | None:
+        rows = self._select(reports, reports.c.kind == kind, limit=1)
+        return rows[0] if rows else None
 
     def decisions(self, limit: int = 20) -> list[dict]:
         return self._select(ceo_decision, limit=limit)

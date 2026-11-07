@@ -18,6 +18,11 @@ hedge-fund/
 │  ├─ governance.py   信頼度区分・合議・矛盾検出・Auditor>80 再評価・Risk 拒否権
 │  ├─ risk.py         ロット計算・DD 段階（3/5/7/10%）・RR・SL 必須・イベント回避
 │  ├─ kpi.py          必須 KPI 13 項目・モンテカルロ（破産確率）・有意性検定
+│  ├─ indicators.py   RSI/MACD/ATR/ADX/EMA/SMA の自前計算、TradingView/MT5 CSV 取込
+│  ├─ backtest.py     4 戦略（順張り/逆張り/ブレイクアウト/押し目・戻り）のバックテストと Alpha Ranking
+│  ├─ evaluation.py   AGENT EVALUATION SYSTEM（予測精度・利益貢献・リスク貢献・一貫性）
+│  ├─ services.py     データ取込・バックテスト・Agent 評価・日次/週次/月次レポート
+│  ├─ jobs.py         定期実行（cron から python -m app.jobs daily|weekly|monthly）
 │  ├─ improvement.py  Learning→Research→Simulation→Quant→Risk→CEO→採用候補（自動適用なし）
 │  ├─ storage.py      追記専用リポジトリ（UPDATE/DELETE メソッドなし）
 │  ├─ execution.py    MT5 Bridge（PLAN では全操作を拒否）
@@ -54,7 +59,14 @@ python -m pytest -q
 | GET | `/decisions` / `/decisions/{cycle_id}/report` | 過去判断の参照 |
 | POST | `/trades` | ペーパートレード結果の記録（学習用） |
 | GET | `/kpi` | 必須 KPI |
-| POST | `/reports/weekly?period=2026-W45` | KPI + モンテカルロ → Learning Agent の週次分析 |
+| POST | `/market-data/import?symbol=USDJPY&timeframe=1H` | CSV（TradingView / MT5 エクスポート）を取込み、指標を計算して保存 |
+| GET | `/market-data` | 保存済みデータを時間軸別に返す（Agent に渡す形式） |
+| POST | `/backtest?symbol=USDJPY&timeframe=1H` | 全戦略をバックテストし Alpha Ranking を保存（提案のみ） |
+| POST | `/agents/evaluate` | Agent Ranking（Top / Weak / 改善対象） |
+| POST | `/reports/daily?day=2026-11-07` | Daily Report |
+| POST | `/reports/weekly?period=2026-W45` | KPI → Learning Agent（提案のみ）→ Weekly Report（Agent Ranking 含む） |
+| POST | `/reports/monthly?period=2026-11` | Monthly Report（CEO 月次評価） |
+| GET | `/reports/{backtest,agents,daily,weekly,monthly}/latest` | 最新レポートの本文 |
 | POST | `/improvements` → `/improvements/{id}/evaluate` | 改善案の提出と検証パイプライン |
 | POST | `/execute` | **常に 403**（PLAN モード） |
 
@@ -90,9 +102,26 @@ python -m pytest -q
 具体値が指示書に無かった閾値（DD 5% / 7% の処理、最小 RR 1.0、CEO 最低信頼度 60 など）は
 `Knowledge/RiskRules.md` に「実装上の既定値」として明記してある。変更は改善パイプライン経由で提案する。
 
+## データの入れ方
+
+1. TradingView のチャートから「データをエクスポート」した CSV（`time,open,high,low,close,Volume`）、
+   または MT5 の「銘柄 → バー → エクスポート」（`<DATE>\t<TIME>\t<OPEN>...`）を `/market-data/import` に送る。
+   時間軸ごと（例: `1D`, `4H`, `1H`, `15M`）に取り込むと、判断サイクルは全時間軸をまとめて Agent に渡す。
+2. `/backtest` で戦略ランキングを作る（60 本以上必要、30 取引未満の戦略は除外）。
+3. `/analyze` を呼ぶと、保存済みの足とバックテスト結果を根拠に判断する。
+4. 判断後の結果はペーパートレードとして `/trades` に `cycle_id` と `strategy` 付きで記録する。これが Agent 評価と KPI の元データになる。
+
+## 定期実行
+
+```
+5 0 * * *   cd /srv/hedge-fund && python -m app.jobs daily     # 前日の Daily Report
+0 1 * * 1   cd /srv/hedge-fund && python -m app.jobs weekly    # 前週の KPI → Learning → Weekly Report
+0 2 1 * *   cd /srv/hedge-fund && python -m app.jobs monthly   # 前月の Monthly Report
+```
+
 ## 未実装（v1.0 の範囲外）
 
 - DEMO / SEMI_AUTO / LIVE モードと MT5 への実接続
 - ニュース・経済指標の自動取得（`ENABLE_WEB_SEARCH=true` で STEP1 の Agent に Claude の web 検索を許可できるが、
   構造化出力との組み合わせは実 API で未検証）
-- Agent 評価（agent_score）の自動算出ジョブ、日次・月次レポートのスケジューラ
+- 市場データの自動取得（現状は Webhook か CSV 取込）

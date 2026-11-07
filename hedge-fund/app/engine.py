@@ -1,10 +1,11 @@
 """Decision Engine（DECISION WORKFLOW STEP1-7 / DATA FLOW）。"""
 from __future__ import annotations
 
+import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
-from . import governance, risk
+from . import governance, risk, services
 from .agents import BY_KEY, AgentSpec, agents_for_step
 from .config import Mode, Settings
 from .kpi import Trade, compute_kpi, monte_carlo, r_multiples_from_stats
@@ -20,6 +21,7 @@ class DecisionEngine:
         self.settings = settings
         self.backend = backend
         self.repo = repo
+        self._mtf: dict = {}
 
     # ------------------------------------------------------------- helpers
     def _payload(self, agent: AgentSpec, req: AnalysisRequest, prior: list[AgentReport], extra: dict | None = None) -> dict:
@@ -27,6 +29,7 @@ class DecisionEngine:
             "mode": self.settings.mode.value,
             "symbol": req.symbol,
             "market_data": [b.model_dump() for b in req.market_data],
+            "multi_timeframe": self._mtf,
             "context": {k: v for k, v in req.context.items() if k in ("common", agent.key, agent.name)},
             "proposal": req.proposal.model_dump() | {"rr": req.proposal.rr} if req.proposal else None,
             "prior_agent_reports": [r.model_dump() for r in prior],
@@ -44,6 +47,9 @@ class DecisionEngine:
         """Quant / Simulation 用に、記録済みトレードから KPI とモンテカルロを計算する。"""
         trades = [Trade(t["timestamp"], t["profit_loss"]) for t in self.repo.trades() if t["profit_loss"] is not None]
         out: dict = {"recorded_trades": len(trades)}
+        bt = self.repo.latest_report("backtest")
+        if bt:
+            out["backtest_ranking"] = json.loads(bt["payload_json"])
         if trades:
             kpi = compute_kpi(trades, self.settings.account_balance)
             out["kpi"] = kpi.as_dict()
@@ -55,6 +61,7 @@ class DecisionEngine:
     # --------------------------------------------------------------- cycle
     def run_cycle(self, req: AnalysisRequest) -> tuple[CEODecision, list[AgentReport]]:
         cycle_id = uuid.uuid4().hex[:16]
+        self._mtf = services.multi_timeframe(self.repo, req.symbol)
         if not req.market_data:
             req = req.model_copy(update={"market_data": self._stored_market_data(req.symbol)})
 
@@ -114,9 +121,12 @@ class DecisionEngine:
     def _stored_market_data(self, symbol: str):
         from .models import MarketData
 
-        rows = self.repo.recent_market_data(symbol)
+        tfs = list(self._mtf)
+        preferred = next((t for t in ("1H", "60") if t in tfs), tfs[-1] if tfs else None)
+        rows = self.repo.bars(symbol, preferred, 50) if preferred else []
         fields = MarketData.model_fields.keys()
-        return [MarketData(**{k: v for k, v in r.items() if k in fields and v is not None}) for r in rows]
+        return [MarketData(**({k: v for k, v in r.items() if k in fields and v is not None} | {"timeframe": r["timeframe"]}))
+                for r in rows]
 
     def _build_decision(self, cycle_id, req, reports, cons, ceo, source, gov, risk_decision) -> CEODecision:
         auditor = next(r for r in reports if r.agent == "Auditor Agent")
@@ -153,6 +163,9 @@ class DecisionEngine:
     def run_learning(self, period: str) -> tuple[dict, AgentReport]:
         """毎週: KPI を計算し Learning Agent に分析させる（提案のみ、適用はしない）。"""
         stats = self._statistics()
+        stats["agent_ranking"] = services.evaluation.ranking(
+            services.evaluation.score_agents(self.repo.all_agent_reports(), self.repo.trades()))
+        self._mtf = {}
         req = AnalysisRequest(symbol="ALL")
         report = self.backend.run(BY_KEY["learning"], self._payload(BY_KEY["learning"], req, [], {"period": period, **stats}))
         self.repo.save_agent_report(f"learning-{period}", "ALL", report.model_dump())

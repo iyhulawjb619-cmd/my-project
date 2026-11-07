@@ -91,8 +91,11 @@ def compute_kpi(trades: list[Trade], starting_balance: float) -> KPI:
     if trades and mdd_pct > 0:
         days = max(1, (datetime.fromisoformat(trades[-1].timestamp) - datetime.fromisoformat(trades[0].timestamp)).days)
         total_ret = net / starting_balance
-        annualized = ((1 + total_ret) ** (365 / days) - 1) * 100 if total_ret > -1 else -100.0
-        calmar = round(annualized / mdd_pct, 3)
+        try:
+            annualized = ((1 + total_ret) ** (365 / days) - 1) * 100 if total_ret > -1 else -100.0
+        except OverflowError:
+            annualized = float("inf")
+        calmar = None if math.isinf(annualized) else round(annualized / mdd_pct, 3)
 
     return KPI(
         trades=len(pnls),

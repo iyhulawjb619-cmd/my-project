@@ -33,8 +33,11 @@ CREATE TABLE IF NOT EXISTS trade_history (
   id BIGSERIAL PRIMARY KEY, timestamp TEXT, symbol TEXT, direction TEXT,
   entry_price DOUBLE PRECISION, exit_price DOUBLE PRECISION, stop_loss DOUBLE PRECISION,
   take_profit DOUBLE PRECISION, lot DOUBLE PRECISION, profit_loss DOUBLE PRECISION, rr DOUBLE PRECISION,
-  result TEXT, cycle_id TEXT, account_type TEXT, created_at TIMESTAMPTZ DEFAULT now()
+  result TEXT, cycle_id TEXT, account_type TEXT, strategy TEXT, created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- v1.0 初期版からの移行
+ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS strategy TEXT;
 
 CREATE TABLE IF NOT EXISTS learning_results (
   id BIGSERIAL PRIMARY KEY, timestamp TEXT, finding TEXT, improvement TEXT, estimated_effect TEXT,
@@ -69,6 +72,12 @@ CREATE TABLE IF NOT EXISTS version_control (
   expected_impact TEXT, actual_impact TEXT, created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS reports (
+  id BIGSERIAL PRIMARY KEY, kind TEXT, period TEXT, body TEXT, payload_json TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_reports_kind ON reports (kind);
+
 CREATE OR REPLACE FUNCTION forbid_mutation() RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'DATA RETENTION POLICY: % on % is forbidden (append-only)', TG_OP, TG_TABLE_NAME;
@@ -79,7 +88,7 @@ DO $$
 DECLARE t TEXT;
 BEGIN
   FOREACH t IN ARRAY ARRAY['market_data','agent_analysis','ceo_decision','trade_history','learning_results',
-                           'research_projects','agent_score','memory_records','improvement_history','version_control']
+                           'research_projects','agent_score','memory_records','improvement_history','version_control','reports']
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS %I_append_only ON %I', t, t);
     EXECUTE format('CREATE TRIGGER %I_append_only BEFORE UPDATE OR DELETE OR TRUNCATE ON %I '
